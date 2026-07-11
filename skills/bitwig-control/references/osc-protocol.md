@@ -32,7 +32,10 @@ address doesn't exist. If the `opensrc/` symlink is missing:
   both ways; strings are ASCII-sanitized.
 - **Bad commands are visible to the user**: unknown addresses and illegal
   parameters print `Unknown OSC command:` / `Illegal parameter:` lines in
-  Bitwig's controller console.
+  Bitwig's controller console. **Out-of-bank indices are worse than bad**:
+  an uncaught `ArrayIndexOutOfBoundsException` crashes the whole extension
+  (observed with clip index 9 on an 8-slot bank) — keep every `{1-N}` within
+  the bank page size.
 - Receive port (default 8000) and send port (9000) must differ; send host/port
   changes need a Bitwig restart. "Bank page size" (default 8) bounds every
   `{1-N}` index below; "Value resolution" (128/1024/16384) sets value ranges.

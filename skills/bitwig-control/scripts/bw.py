@@ -27,6 +27,18 @@ HOST = os.environ.get("BITWIG_OSC_HOST", "127.0.0.1")
 SEND_PORT = int(os.environ.get("BITWIG_OSC_SEND_PORT", "8000"))     # DBM listens here
 FEEDBACK_PORT = int(os.environ.get("BITWIG_OSC_FEEDBACK_PORT", "9000"))  # DBM sends here
 RESOLUTION = int(os.environ.get("BITWIG_OSC_RESOLUTION", "128"))    # DBM "Value resolution"
+BANK = int(os.environ.get("BITWIG_OSC_BANK_SIZE", "8"))  # DBM "Bank page size"
+
+
+def bank_index(n):
+    """Track/slot/scene indices address a BANK-wide window; an index past it
+    crashes the DrivenByMoss extension outright ('Index 8 out of bounds for
+    length 8' — observed live). Refuse client-side."""
+    n = int(n)
+    if not 1 <= n <= BANK:
+        raise SystemExit(f"index {n} outside the {BANK}-wide bank window "
+                         f"(would CRASH the OSC extension); scroll the bank instead")
+    return n
 
 
 def client():
@@ -121,8 +133,14 @@ def cmd_param(args):
     c.send_message(key, value)
     time.sleep(0.4)
     state = collect_feedback(1.2)
-    if state.get(key, (None,))[0] != value:
-        c.send_message(key, value)  # one retry
+    got = state.get(key, (None,))[0]
+    if got != value:
+        # some states reject a cold absolute write (takeover-like); priming
+        # with the current value first unlocks the move
+        if got is not None:
+            c.send_message(key, got)
+            time.sleep(0.2)
+        c.send_message(key, value)
         time.sleep(0.4)
         state = collect_feedback(1.2)
     got = state.get(key, (None,))[0]
@@ -198,16 +216,16 @@ def main():
 
     for name, addr in (("clip-create", "create"), ("clip-launch", "launch")):
         p = sub.add_parser(name)
-        p.add_argument("track", type=int)
-        p.add_argument("slot", type=int)
+        p.add_argument("track", type=bank_index)
+        p.add_argument("slot", type=bank_index)
         if name == "clip-create":
             p.add_argument("beats", type=int)
             p.set_defaults(fn=simple(lambda a: f"/track/{a.track}/clip/{a.slot}/create", lambda a: a.beats))
         else:
             p.set_defaults(fn=simple(lambda a: f"/track/{a.track}/clip/{a.slot}/launch"))
     p = sub.add_parser("clip-insert-file")
-    p.add_argument("track", type=int)
-    p.add_argument("slot", type=int)
+    p.add_argument("track", type=bank_index)
+    p.add_argument("slot", type=bank_index)
     p.add_argument("path")
     p.add_argument("--force", action="store_true", help="overwrite a non-empty slot")
     p.set_defaults(fn=cmd_insert_file)

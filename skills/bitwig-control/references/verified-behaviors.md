@@ -72,8 +72,13 @@ readback is a guess, not a behavior.
 - **Track names are device names**: Bitwig auto-renames tracks after their
   first device ("Inst 1" became "Organ"). Identify tracks by index + type +
   moment-of-reading, never by remembered name.
-- **No error replies ever**: wrong addresses and out-of-window indices vanish
-  silently. Feedback delta is the only success signal.
+- **No error replies over OSC**: unknown addresses print a console line in
+  Bitwig and are otherwise ignored — but **an out-of-bank index CRASHES the
+  extension**: `/track/1/clip/9/launch` against an 8-slot bank killed
+  DrivenByMoss with "Index 8 out of bounds for length 8" (dialog offering
+  Disable/Restart; the user must click Restart, all OSC dead until then).
+  `bw.py` bounds-checks its CLI indices; hand-rolled sends (raw, inline
+  scripts) must do their own `1..bank` check.
 - **Browser**: no search-by-name and no select-by-index (source-confirmed:
   the module only exposes stepping); result feedback observed stale after
   filter changes; category filters hide container devices (Drum Machine under

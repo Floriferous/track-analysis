@@ -26,7 +26,9 @@ Everything goes through `scripts/bw.py` — one-shot CLI commands over OSC
 2. Map the terrain: `bw.py state /track` — done when you can name every
    visible track, its type, and which slots have content. Indices are
    positions in an 8-wide **bank window** (`/track/bank/{+,-}` slides it), not
-   absolute project positions.
+   absolute project positions — and an index past the window **crashes the
+   OSC extension** (user must click Restart in Bitwig). `bw.py` refuses such
+   indices; bounds-check any hand-rolled `raw` or script send yourself.
 3. Match the stakes: experiments belong in a scratch project; in a project
    that matters, snapshot the current readback of anything you'll change and
    confirm destructive writes with the user first.
