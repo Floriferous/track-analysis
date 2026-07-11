@@ -21,7 +21,7 @@ import numpy as np
 import scipy.signal
 import soundfile as sf
 
-from common import band_power, beat_grid, grid16, parse_timestamp
+from common import band_power, beat_grid, fmt_label, grid16, parse_timestamp
 
 SR = 44100
 FINE_HOP = 128  # ~2.9ms
@@ -220,9 +220,10 @@ def stems_fig(stems, sr, t0, t1, out, title):
 
 def run(path, t_start, t_end, out_root):
     slug = Path(path).stem[:60]
-    outdir = Path(out_root) / f"{slug}_{int(t_start)}-{int(t_end)}"
+    span = f"{fmt_label(t_start)}-{fmt_label(t_end)}"
+    outdir = Path(out_root) / f"{slug}_{span}"
     outdir.mkdir(parents=True, exist_ok=True)
-    print(f"{'=' * 70}\nDEEP: {slug} {t_start:.0f}-{t_end:.0f}s")
+    print(f"{'=' * 70}\nDEEP: {slug} {span}")
     stereo, _ = librosa.load(path, sr=SR, mono=False, offset=t_start, duration=t_end - t_start)
     if stereo.ndim == 1:
         stereo = np.stack([stereo, stereo])
@@ -297,7 +298,7 @@ def run(path, t_start, t_end, out_root):
         print(f"  bar {n['bar']} pos {n['pos16']:>4} len {n['dur16']:>4} 16ths  {n['note']} ({n['hz']:.0f}Hz)")
 
     if nk:
-        anatomy_fig(wave, f0, decay_ms, nk, pump, outdir / "anatomy.png", f"{slug} {t_start:.0f}-{t_end:.0f}s")
+        anatomy_fig(wave, f0, decay_ms, nk, pump, outdir / "anatomy.png", f"{slug} {span}")
     if nb >= 3:
         stems_fig(stems, SR, float(bar_starts[b0]), float(bar_starts[min(b0 + 2, nb - 1)]),
                   outdir / "stems.png", f"{slug} stems, slice bars {b0}-{b0 + 1}")

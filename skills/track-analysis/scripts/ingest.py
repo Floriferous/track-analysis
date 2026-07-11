@@ -20,7 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from common import beat_grid, parse_timestamp
+from common import beat_grid, fmt_label, parse_timestamp
 
 SR = 44100
 HOP = 512  # ~11.6ms global resolution
@@ -287,7 +287,7 @@ def analyze(path, out_root, windows_sec):
     n_bars_win = min(4, len(bar_starts) - 1)
     for w in windows_sec:
         grids, t0, t1, grid, bar_idx = drum_grid(y, sr, beats, w, n_bars_win, bar_starts)
-        label = f"{int(w // 60)}m{int(w % 60):02d}s"
+        label = fmt_label(w)
         print(f"\n-- window @{label}: bars {bar_idx}-{bar_idx + n_bars_win} ({fmt_time(t0)}–{fmt_time(t1)}) --")
         print(render_grid_text(grids, n_bars_win))
         band_sd = {}

@@ -14,6 +14,11 @@ def parse_timestamp(s):
     return sum(float(p) * 60 ** i for i, p in enumerate(reversed(s.strip().split(":"))))
 
 
+def fmt_label(t):
+    """Seconds -> filesystem-safe M:SS label, e.g. 227 -> '3m47s'."""
+    return f"{int(t // 60)}m{int(t % 60):02d}s"
+
+
 def band_power(y, sr, lo, hi, hop, n_fft=2048):
     S = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop)) ** 2
     freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)

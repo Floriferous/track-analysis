@@ -29,7 +29,7 @@ Loudness reading: modern club masters commonly sit around −8 to −10 LUFS int
 
 Each `grids` entry maps a band name to hit lists: `{t, grid16, offset_ms, vel}` — absolute time, nearest 16th-note grid index within the window, signed offset from that grid position in ms, and normalized velocity (0–1, sqrt of band power relative to window peak).
 
-## Deep pass (`deep.py`) — per slice: `<out>/<slug>_<start>-<end>/`
+## Deep pass (`deep.py`) — per slice: `<out>/<slug>_<start>-<end>/` (M:SS labels, e.g. `_3m47s-4m47s`)
 
 - `deep.json` — all numbers (schema below)
 - `anatomy.png` — three panels: average kick waveform (lowpassed), kick f0 glide curve, sidechain pump over one beat
