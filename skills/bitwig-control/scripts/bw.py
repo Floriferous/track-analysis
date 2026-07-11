@@ -43,17 +43,34 @@ def typed(arg):
 
 
 def collect_feedback(seconds, send_refresh=True):
-    """Listen on the feedback port; return {address: last args}. DrivenByMoss
-    streams state on change plus heartbeat pings; /refresh asks for everything."""
+    """Listen on the feedback port; return {address: last args}.
+
+    Feedback is change-driven and cache-deduplicated on the Bitwig side;
+    /refresh forces a full cache-bypassing dump. Batches are framed by
+    /update 1 ... /update 0, so after a dump has ended and the line has gone
+    quiet we can stop early instead of sleeping out the full window."""
     state = {}
+    last_msg = [time.monotonic()]
+    saw_batch_end = [False]
+
+    def handler(addr, *args):
+        state[addr] = args
+        last_msg[0] = time.monotonic()
+        if addr == "/update" and args and args[0] == 0:
+            saw_batch_end[0] = True
+
     disp = dispatcher.Dispatcher()
-    disp.set_default_handler(lambda addr, *args: state.__setitem__(addr, args))
+    disp.set_default_handler(handler)
     server = osc_server.ThreadingOSCUDPServer((HOST, FEEDBACK_PORT), disp)
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
     if send_refresh:
         client().send_message("/refresh", 1)
-    time.sleep(seconds)
+    start = time.monotonic()
+    while time.monotonic() - start < seconds:
+        if saw_batch_end[0] and time.monotonic() - last_msg[0] > 0.25:
+            break
+        time.sleep(0.05)
     server.shutdown()
     return state
 

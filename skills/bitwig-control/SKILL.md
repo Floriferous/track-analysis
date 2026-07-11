@@ -56,6 +56,9 @@ A track's slot *column* holds variations; `raw /scene/{n}/launch` switches the
 whole row, launch-quantized, and the previous row stops itself. Done when
 `state` shows `isPlaying 1` on the intended row. Sketch an arrangement arc
 (intro → build → drop → fill) as one scene per section, tracks in sync.
+`raw /scene/add` appends an empty row when the grid runs out;
+`raw /scene/create` captures the currently *playing* clips into a new scene —
+snapshot a combination the user likes before changing it.
 
 ### Audition a sound
 
@@ -78,6 +81,9 @@ VU means a missing instrument or broken routing.
 3. `bw.py param 3 0.5` (floats 0..1 scale to the configured resolution) —
    done when it prints `[OK]` with the intended display value; `MISMATCH`
    means the cursor moved — re-run `params` and re-aim.
+4. When the user is at the GUI, skip page hunting entirely:
+   they click the knob, you write `raw /device/lastparam/value <int>` — it
+   targets whatever parameter has GUI focus.
 
 ### Add a Bitwig device
 
@@ -99,6 +105,9 @@ user's sample library is fair game for clip work.
 
 Stop the sound first (`raw /clip/stopall`, `stop`), then narrate exactly what
 changed, in order, and let the user drive Cmd+Z with eyes on the history.
+Your failed commands are visible too — Bitwig's controller console prints
+`Unknown OSC command:` / `Illegal parameter:` lines, worth checking when
+debugging. `/project/save` exists: save only when the user asks.
 `bw.py undo`/`redo` exist but fire blind — history is unreadable over OSC and
 an OSC tempo change was observed not to revert — so they're for your own
 just-made, just-verified edit, and narration is for everything else.

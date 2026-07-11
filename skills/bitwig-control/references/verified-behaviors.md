@@ -66,10 +66,16 @@ readback is a guess, not a behavior.
   moment-of-reading, never by remembered name.
 - **No error replies ever**: wrong addresses and out-of-window indices vanish
   silently. Feedback delta is the only success signal.
-- **Browser**: no search-by-name; result feedback can stay stale after filter
-  changes (survives `/refresh`); category filters hide container devices (Drum
-  Machine under Category=Drums shows only presets). Coarse moves only —
-  except the contextual empty-track flow above, which is genuinely usable.
+- **Browser**: no search-by-name and no select-by-index (source-confirmed:
+  the module only exposes stepping); result feedback observed stale after
+  filter changes; category filters hide container devices (Drum Machine under
+  Category=Drums shows only presets). Coarse moves only — except the
+  contextual empty-track flow above, which is genuinely usable.
+- **Staleness has a mechanism** (source-verified): feedback is change-driven
+  with a per-address last-sent cache, so a dropped UDP packet is never
+  re-sent and identical-value transitions are suppressed; `/refresh` is a
+  parser-level full dump that bypasses the cache. Snapshot reads should ride
+  `/refresh` (bw.py does) and re-read after every browser step.
 - **Plugins (VST3/CLAP) were not reachable in the OSC browser**: the
   device-insertion view listed only Bitwig natives (no Diva/Serum/Pigments in
   the alphabetical results), no VST/CLAP entry in the Device Type filter, and
@@ -94,10 +100,26 @@ readback is a guess, not a behavior.
   clicked around the GUI → the cockpit rule, pinning, and readback-verified
   writes.
 
+## Source-verified, awaiting live confirmation
+
+Read in the DrivenByMoss 26.6.2 implementation (see osc-protocol.md for the
+full surface), not yet exercised against a live project:
+
+- `/scene/add` (empty scene) and `/scene/create` (captures playing clips)
+- `/track/{n}/remove`, `/duplicate`, `/name`, `/color`; `/track/add/effect`
+- `/device/lastparam/value` (writes the GUI-focused parameter),
+  `/device/remove`, `/duplicate`, `/bypass`; layer/drumpad subtrees; `/eq` tree
+- `/project/save`, `/project/engine`, project-level remote controls
+- `/time {beats}` playhead writes — feedback is strings only
+  (`/time/str`, `/beat/str`); numeric position is never echoed
+- Markers are launch-only (`/marker/{n}/launch`) — no create over OSC
+- `/action/{1-20}` fires Bitwig actions pre-bound in DrivenByMoss settings
+- Floats truncate to int in most handlers (`toInteger`) — `0.5` becomes `0`
+- `/vkb_midi` notes are remapped through the current scale (out-of-scale
+  notes silently dropped) and a fixed-accent setting can override velocities
+
 ## Untested
 
-Track remove/reorder, banks beyond 8 (`/track/bank/+`), adding scenes beyond
-the project's existing rows, markers, `insertFile` with audio files, `/time`
-write effect (unverifiable without position feedback), value resolutions above
-128, `/browser/preset` commit flow end-to-end, automation writing, cue
-markers, project save.
+Banks beyond 8 (`/track/bank/+`), value resolutions above 128,
+`/browser/preset` commit flow end-to-end, automation writing
+(`/autowrite`, `/automationWriteMode`).

@@ -1,100 +1,149 @@
-# DrivenByMoss OSC — the addresses that matter
+# DrivenByMoss OSC — implementation-verified reference
 
-Curated from the official protocol doc and manual (DrivenByMoss 26.6.2). Full
-reference: <https://github.com/git-moss/DrivenByMoss-Documentation/blob/master/Generic-Tools-Protocols/Open-Sound-Control-(OSC).md>
-and the manual PDF bundled in the download.
+Verified against the DrivenByMoss 26.6.2 source. **Ground truth is the
+implementation**: `opensrc/DrivenByMoss/src/main/java/de/mossgrabers/controller/osc/`
+— `protocol/OSCParser.java`+`OSCWriter.java` for wire mechanics, one
+`module/*Module.java` per address family. Read the module before concluding an
+address doesn't exist. If the `opensrc/` symlink is missing:
+`npx opensrc fetch git-moss/DrivenByMoss`, symlink the printed path to
+`opensrc/DrivenByMoss`.
 
-**Ground truth is the implementation**: `opensrc/DrivenByMoss/src/main/java/
-de/mossgrabers/controller/osc/module/` — one module class per address family
-(Transport, Track, Clip, Scene, Device, Browser, Midi, Marker, Project,
-Global). Read the module before concluding an address doesn't exist; the docs
-lag the code (e.g. `/scene/add` exists in SceneModule but not in this table).
-If the `opensrc/` symlink is missing: `npx opensrc fetch git-moss/DrivenByMoss`
-then symlink the printed path to `opensrc/DrivenByMoss`.
+## Wire mechanics (why the link behaves as it does)
 
-All indices are **bank-relative 1..8** (a window onto the project, not absolute
-positions). `/track/bank/{+,-}` and `/device/bank/page/{+,-}` slide the window.
-Bank size is a DrivenByMoss preference (default 8).
+- **Feedback is change-driven and cache-deduplicated.** Bitwig's flush tick
+  batches only values that differ from a per-address last-sent cache, framed
+  by `/update 1` … `/update 0`, in bundles of ≤100 messages ~10 ms apart. A
+  dropped UDP packet is never re-sent (the cache thinks it went out), so a
+  client's view can silently drift.
+- **`/refresh` is the recovery**: handled in the parser itself, it forces a
+  full cache-bypassing dump of everything. Send it on connect and whenever
+  state looks stale.
+- **No idle heartbeat.** `/time/str` and `/beat/str` stream while the
+  transport moves; when idle and unchanged, silence is normal. Liveness check
+  = `/refresh` and expect a dump.
+- **Numeric args are truncated to int** by most handlers (`toInteger`):
+  sending `0.5` to a volume yields `0`. Scale to the configured resolution
+  (default 0–127) and send integers. True-float exceptions: `/tempo/raw`,
+  `/tempo/+ -`, `/time`, `/launcher/postRecordingTimeOffset`.
+- **Triggers**: no argument at all, or any number > 0, fires; `0` is
+  false/release. Toggle commands (`mute`, `click`, `repeat`…) toggle when the
+  argument is *absent* and set when it's `0`/`1`.
+- **Booleans** arrive as `0`/`1`; **colors** are strings `rgb(r,g,b)` (0–255)
+  both ways; strings are ASCII-sanitized.
+- **Bad commands are visible to the user**: unknown addresses and illegal
+  parameters print `Unknown OSC command:` / `Illegal parameter:` lines in
+  Bitwig's controller console.
+- Receive port (default 8000) and send port (9000) must differ; send host/port
+  changes need a Bitwig restart. "Bank page size" (default 8) bounds every
+  `{1-N}` index below; "Value resolution" (128/1024/16384) sets value ranges.
 
-## Transport
-
-| Address | Args | Notes |
-|---|---|---|
-| `/play`, `/stop`, `/record` | none or `{0,1}` | |
-| `/tempo/raw` | `{0-666}` | BPM, float OK |
-| `/time` | position | playback position |
-| `/click` | `{0,1}` | metronome |
-
-## Clips (the groove-injection path)
-
-| Address | Args | Notes |
-|---|---|---|
-| `/track/{1-8}/clip/{1-8}/create` | `{beats}` | new empty clip of that length |
-| `/track/{1-8}/clip/{1-8}/insertFile` | `{path}` | loads a MIDI or audio file into the slot — absolute path; replaces existing slot content |
-| `/track/{1-8}/clip/{1-8}/launch` | launch=1, release=0 | |
-| `/track/{1-8}/clip/{1-8}/select` | | |
-| `/clip/create` | `{beats}` | on the cursor track |
-| `/clip/stopall` | | stop all clips |
-| `/scene/{1-8}/launch` | | launch a whole scene row (verified) |
-
-## Tracks
-
-`/track/{1-8}/volume {0-RES}`, `/pan`, `/mute {0,1}`, `/solo`, `/recarm`,
-`/select`, `/track/bank/{+,-}`. Feedback includes `/track/{n}/name` etc.
-
-`/track/add/instrument` and `/track/add/audio` — append a new track (verified
-working; the new track lands at the end of the bank).
-
-Feedback extras: `/track/{n}/vu` (live level meter — the "hearing" proxy),
-`/track/{n}/send/{1-8}/volume(+Str)`, `/master/vu`, `/track/selected/*`.
-
-## Device / synth editing (cursor device)
+## Transport (`TransportModule`)
 
 | Address | Args | Notes |
 |---|---|---|
-| `/device/param/{1-8}/value` | `{0-RES}` | RES = "Value resolution" preference, default 128 → 0-127 |
-| `/device/page/{1-8}/selected` | | jump to a remote-controls page |
-| `/device/param/{+,-}` | | next/previous page |
-| `/device/{+,-}` | | walk the device chain |
-| `/device/sibling/{1-8}/selected` | | |
-| `/device/expand`, `/device/window` | `{0,1}` | open plugin UI |
-| `/device/pinned` | `{0,1}` | stop cursor following selection |
+| `/play`, `/stop`, `/record`, `/restart`, `/playbutton` | trigger | stop twice = stop-and-rewind |
+| `/tempo/raw` | float BPM | also `/tempo/tap`, `/tempo/+ [step]`, `/tempo/- [step]` |
+| `/time` | float beats | absolute playhead position; feedback is strings only: `/time/str`, `/beat/str` |
+| `/position/{+,-,++,--,start}` | | jog fine/coarse/home |
+| `/click` | toggle/bool | `/click/volume {int}`, `/click/ticks`, `/click/preroll`, `/preroll {bars}` |
+| `/overdub[/launcher]`, `/repeat`, `/punchIn`, `/punchOut` | toggle/bool | |
+| `/autowrite[/launcher]` | trigger | `/automationWriteMode {LATCH\|TOUCH\|WRITE}` |
+| `/quantize` | trigger | quantizes the cursor note clip, amount 1.0 |
+| `/crossfade` | int | + `/crossfade/reset` |
+| `/launcher/defaultQuantization` | string | e.g. `1/4`; also `postRecordingAction`, `postRecordingTimeOffset` |
 
-Feedback: `/device/name`, `/device/page/selected/name`, `/device/param/{n}/name`,
-`/device/param/{n}/value` (+ display string). Listen before you tweak.
+## Tracks (`TrackModule`) — also `/master/...` and `/track/selected/...`
 
-## Browser (load devices & presets)
+Per track `/track/{1-N}/`: `volume`, `pan` (int; each with `/indicate`,
+`/reset`, `/touched`), `mute`, `solo`, `recarm`, `monitor`, `autoMonitor`
+(toggle/bool), `select`, `duplicate`, `remove`, `activated`, `name {str}`,
+`color {rgb()}`, `crossfadeMode/{A,B,AB}`, `recordQuantization {str}`,
+`enter` (descend into group), `send/{1-N}/volume` (+variants),
+`clip/...` (below), `clip/stop`, `clip/returntoarrangement`.
 
-Flow: open → filter → step results → commit.
+Bank level: `/track/add/{instrument,audio,effect}`, `/track/{+,-}` (move
+selection), `/track/bank/{+,-}` (scroll window), `/track/bank/page/{+,-}`,
+`/track/parent` (up out of group), `/track/stop[Alt]`, `/track/toggleBank`
+(main↔effect banks), `/track/vu {bool}` (enable VU feedback!),
+`/track/param/{1-N}/value` (the **cursor track's remote controls**) +
+`/track/page/{n}` page selection.
 
-| Address | Notes |
-|---|---|
-| `/browser/device/after` (or `/before`) | insert a device relative to cursor device |
-| `/browser/preset` | swap preset of cursor device |
-| `/browser/tab/{+,-}` | Devices / Presets / Multisamples ... |
-| `/browser/filter/{1-6}/{+,-}` and `/reset` | columns: Favorites, Location, Type, Category, Tags, Creator |
-| `/browser/result/{+,-}` | step result list |
-| `/browser/commit` / `/browser/cancel` | |
+Feedback per track: `exists`, `type`, `name`, `volume(+Str)`, `pan(+Str)`,
+`mute`, `solo`, `recarm`, `monitor`, `isGroup`, `canHoldNotes`, `position`,
+`vu` (when enabled), `color`, full `clip/{n}/` blocks
+(`hasContent`, `isPlaying`, `isPlayingQueued`, `isRecording`, `name`, `color`…).
 
-Feedback streams the visible filter/result names — step, read, step.
+## Clips — two surfaces
 
-## Real-time notes (virtual keyboard)
+**Explicit slot** `/track/{t}/clip/{c}/`: `launch {>0 press, ≤0 release}`,
+`launchAlt`, `create {beats}`, `insertFile {abs path}` (replaces slot content;
+audio or MIDI), `record`, `duplicate`, `remove`, `select`, `color`.
 
-| Address | Args |
-|---|---|
-| `/vkb_midi/{ch 1-16}/note/{0-127}` | `{velocity 0-127}`, 0 = note off |
-| `/vkb_midi/{ch}/drum/{0-127}` | same, drum-pad variant |
-| `/vkb_midi/{ch}/cc/{0-127}` | `{0-127}` |
-| `/vkb_midi/{ch}/pitchbend` | `{0-127}`, 64 = center |
-| `/vkb_midi/{ch}/aftertouch[/{note}]` | `{0-127}` |
+**Cursor clip** `/clip/` (selected slot of cursor track): `launch`,
+`launchAlt`, `create`, `insertFile`, `record`, `name {str}`, `color`,
+`quantize`, `pinned`, `{+,-}` (move slot selection), `stop[Alt]` (cursor
+track), `stopall[Alt]` (everything). No remove/duplicate here — those are
+explicit-slot only. No note-level editing anywhere in the OSC surface.
 
-Notes go to whatever track is record-armed/monitoring. Timing rides on UDP —
-fine for auditioning, do not use for precision groove recording (insertFile
-preserves file timing exactly; vkb_midi does not).
+## Scenes (`SceneModule`)
 
-## Global
+`/scene/add` (new empty scene), `/scene/create` (new scene **from currently
+playing clips** — capture!), `/scene/{n}/launch`, `/scene/{n}/{select,
+duplicate,remove}`, `/scene/{n}/name {str}`, `/scene/{n}/color {rgb()}`,
+`/scene/{+,-}` scroll, `/scene/bank/{+,-}`. Quirk: `/scene/{n}/launchAlt` is
+identical to `launch` in 26.6.2 (alt flag hard-coded false).
 
-`/refresh` — resend all state (how `bw.py` snapshots). DrivenByMoss also emits
-heartbeat pings; any feedback at all proves the link works.
+## Device (`DeviceModule`) — also `/primary/` (first instrument) and `/eq/`
 
-`/undo`, `/redo` — fire Bitwig's undo/redo; history is not exposed over OSC.
+| Address | Args | Notes |
+|---|---|---|
+| `/device/param/{1-N}/value` | int | + `/indicate`, `/reset`, `/touched {bool}` (explicit touch protocol — value writes alone don't touch) |
+| `/device/page/{n}` or `/page/select {n}` | | direct page jump; `/device/param/{+,-}` scroll pages |
+| `/device/{+,-}` | trigger | walk device chain; `/device/sibling/{n}/select`, `/device/bank/page/{+,-}` |
+| `/device/pinned` | toggle/bool | hold cursor against GUI selection |
+| `/device/bypass` | trigger | toggle enabled |
+| `/device/expand`, `/device/window`, `/device/parameters` | trigger | UI toggles |
+| `/device/duplicate`, `/device/remove` | trigger | |
+| `/device/lastparam/{value,indicate,reset,touched}` | | **writes the GUI-focused parameter, bypassing pages** — "click the knob, I'll turn it" |
+| `/device/layer/{n\|selected\|+,-}/...` | | volume/pan/mute/solo/sends/name/enter per layer; same tree at `/device/drumpad/{n}/` when the device has pads |
+| `/eq/add` | trigger | add an EQ to cursor track; `/eq/{type,gain,freq,q}/{band}` edit bands |
+
+Feedback: `/device/{exists,name,bypass,expand,window,pinned}`, full param
+blocks with `valueStr`, page names + `/device/page/selected/name`, sibling
+names, layer/drumpad blocks.
+
+## Project & application
+
+`/project/{+,-}` switch projects, `/project/engine {toggle/bool}`,
+**`/project/save`**, `/project/param/{1-N}/value` (project-level remote
+controls) + page nav. `/undo`, `/redo` (GlobalModule — blind, no history
+feedback). `/action/{1-20}`: fires Bitwig actions **pre-bound in the
+DrivenByMoss settings GUI** (any Bitwig action ID can be bound to a slot —
+a configurable escape hatch, but not arbitrary IDs over the wire).
+
+## Browser (`BrowserModule`)
+
+`/browser/preset` (browse presets of cursor device), `/browser/device
+[after|before]` (insert relative to cursor device), `/browser/tab/{+,-}`,
+`/browser/filter/{1-6}/{+,-,reset}`, `/browser/result/{+,-}`,
+`/browser/commit`, `/browser/cancel`. **No select-by-index and no
+search-by-name** — stepping only; feedback for filter/result windows rides
+the same flush diffing, so re-read after every step and `/refresh` when in
+doubt.
+
+## Notes & MIDI (`MidiModule`)
+
+`/vkb_midi/{ch 1-16}/note/{0-127} {vel}` (0 = off) — sent into the surface's
+note input, i.e. whatever track(s) are armed/monitoring; remapped through the
+current scale (out-of-scale notes are *dropped* — octave shifts via
+`/note/{+,-}`). `/drum/{note}` uses the drum matrix instead. `/cc/{n}`,
+`/pitchbend` (64 = center), `/aftertouch[/{note}]`. `/vkb_midi/velocity {int}`
+sets a fixed accent that **overrides all incoming velocities** (0 disables).
+Note repeat: `/vkb_midi/noterepeat/{isActive,period,length}` (`1/4`…`1/32t`).
+
+## Markers, layout, panels
+
+`/marker/{n}/launch` and `/marker/bank/{+,-}` — markers can be jumped to but
+**not created** over OSC. Feedback: `/marker/{n}/{exists,name,color}`.
+`/layout {ARRANGE|MIX|EDIT}`, `/panel/{noteEditor,automationEditor,devices,
+mixer,fullscreen}`, `/arranger/*` and `/mixer/*` visibility toggles.
