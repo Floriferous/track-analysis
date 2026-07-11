@@ -22,7 +22,7 @@ Bank size is a DrivenByMoss preference (default 8).
 | Address | Args | Notes |
 |---|---|---|
 | `/track/{1-8}/clip/{1-8}/create` | `{beats}` | new empty clip of that length |
-| `/track/{1-8}/clip/{1-8}/insertFile` | `{path}` | **loads a MIDI (or audio) file into the slot — absolute path. REPLACES existing content; check `hasContent` first (blank names lie)** |
+| `/track/{1-8}/clip/{1-8}/insertFile` | `{path}` | loads a MIDI or audio file into the slot — absolute path; replaces existing slot content |
 | `/track/{1-8}/clip/{1-8}/launch` | launch=1, release=0 | |
 | `/track/{1-8}/clip/{1-8}/select` | | |
 | `/clip/create` | `{beats}` | on the cursor track |
@@ -89,5 +89,4 @@ preserves file timing exactly; vkb_midi does not).
 `/refresh` — resend all state (how `bw.py` snapshots). DrivenByMoss also emits
 heartbeat pings; any feedback at all proves the link works.
 
-`/undo`, `/redo` — fire Bitwig's undo/redo. Blind: history isn't readable over
-OSC, and OSC tempo changes were observed not to revert via undo.
+`/undo`, `/redo` — fire Bitwig's undo/redo; history is not exposed over OSC.

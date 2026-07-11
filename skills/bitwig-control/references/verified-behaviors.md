@@ -54,16 +54,13 @@ readback is a guess, not a behavior.
 
 - **insertFile REPLACES slot content**, and **blank clip names do not mean
   empty slots** (unnamed clips read as ""). `hasContent` is the only truthful
-  check. Learned by overwriting real project clips.
+  emptiness check.
 - **`clip-create` then `insertFile` is an anti-pattern**: a created clip has
   `hasContent 1` immediately, so the guard (correctly) refuses. `clip-create`
   is only for making an empty clip to record or draw into.
-- **Cursor churn**: the cursor device follows GUI selection. While the user
-  clicks around Bitwig, `/device/param` writes silently land on whatever *they*
-  selected — observed as a run of ignored/misdirected writes during concurrent
-  GUI use, indistinguishable from failure until read back. Protocol: announce
-  device edits, `raw /device/pinned 1` to hold the cursor, and treat the
-  readback (bw.py `param` does it automatically) as the write.
+- **Cursor churn**: the cursor device follows GUI selection, so during
+  concurrent GUI use `/device/param` writes silently land on whatever the
+  human has selected — indistinguishable from failure until read back.
 - **Track names are device names**: Bitwig auto-renames tracks after their
   first device ("Inst 1" became "Organ"). Identify tracks by index + type +
   moment-of-reading, never by remembered name.
@@ -82,21 +79,20 @@ readback is a guess, not a behavior.
   device-agnostic (remote-control pages work the same for plugins).
 - **Empty containers make no sound**: a freshly added Drum Machine has empty
   pads; loading kits/samples into it is preset-browser or GUI territory.
-- **Undo is blind**: history unreadable, and an OSC tempo change did not revert
-  via `/undo`. After a mistake in a real project, narrate exactly what changed
-  and let the user drive Cmd+Z.
+- **Undo is blind**: history unreadable over OSC, and an OSC tempo change did
+  not revert via `/undo`.
 - **No position/clip-length feedback**: `/time` writes produce no observable
   readback address; clips expose no length/loop state.
 
-## Field rules (from incidents)
+## Incidents (the evidence behind SKILL.md's rules)
 
-1. **Snapshot before mutating.** Record the readback value of anything you're
-   about to change (a volume was changed here without noting the original —
-   restoring it meant guessing).
-2. **Sandbox first.** New experiments run in a scratch project; the user's real
-   project is not a lab.
-3. **A write isn't done until read back.** UDP + no error replies means
-   fire-and-forget is fire-and-hope.
+- Real project clips were overwritten because empty clip *names* were read as
+  empty *slots* → the hasContent guard and the sandbox rule.
+- A track volume was changed without recording its original value; restoring
+  it meant guessing → snapshot before mutating.
+- A run of param writes silently landed on the wrong device while the user
+  clicked around the GUI → the cockpit rule, pinning, and readback-verified
+  writes.
 
 ## Untested
 
