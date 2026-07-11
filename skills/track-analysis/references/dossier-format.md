@@ -22,6 +22,8 @@ boundaries    [{bar, time}]  detected section changes
 windows       {label: {t0, t1, bar, grids}}  per-window drum grids
 ```
 
+Reruns with new `--windows` merge into an existing `dossier.json` (same label = overwritten), so a dossier accumulates windows across a conversation; whole-track fields reflect the latest run. Without `--windows` only the whole-track outputs are produced.
+
 Loudness reading: modern club masters commonly sit around −8 to −10 LUFS integrated with crest ~9–11 dB; a much quieter or more dynamic reading is a mastering difference worth stating before comparing anything level-dependent.
 
 Each `grids` entry maps a band name to hit lists: `{t, grid16, offset_ms, vel}` — absolute time, nearest 16th-note grid index within the window, signed offset from that grid position in ms, and normalized velocity (0–1, sqrt of band power relative to window peak).
@@ -74,7 +76,7 @@ Defined at the top of `ingest.py`: sub/kick 25–120 Hz, bass 120–350, low-mid
 ## Known failure modes (all observed on real tracks)
 
 1. **Offbeat phase lock** (librosa fallback grid only; `grid_source` says which ran). Beat trackers lock onto offbeat hats/bass instead of the kick — every grid then shows the kick at index 2 instead of 0. The fallback re-anchors beat phase to kick-band onset energy, but that correction itself fails on long kickless passages. Symptom: kick row pattern at indices 2/6/10/14. Fix: install Beat This!, re-run on a kick-present section, or distrust the phase.
-2. **Sustained sub masks kick onsets.** Spectral-flux onset detection misses four-on-floor kicks riding on a continuous sub bassline. The scripts use amplitude-peak picking for the sub band instead — but a *genuinely* kickless passage may still yield spurious sub "hits" from bass notes. The spectrogram cross-check (skill step 4) is the arbiter.
+2. **Sustained sub masks kick onsets.** Spectral-flux onset detection misses four-on-floor kicks riding on a continuous sub bassline. The scripts use amplitude-peak picking for the sub band instead — but on rolling-bass material (a large share of techno/house) the bassline still pollutes the sub grid: missing beats, spurious between-beat hits. The numeric tell: sub-band offset sd ≳ 15–20 ms while every other band sits at 5–7 ms; the spectrogram then typically shows clean kick attacks on every beat that the grid misses. The spectrogram cross-check (skill step 4) is the arbiter; the deep pass resolves it properly — its kick timing comes from the separated drums stem (~7 ms sd on material where the mixed sub band reads 20+ ms).
 3. **Cross-band offset bias.** Low-frequency onsets smear late (long analysis windows), flux onsets fire at attack start — so absolute per-band offset means differ by ±30 ms for physical reasons, not musical ones. Persists even with one shared detector, because the bands themselves differ. Only within-band spread, within-band relative placement, and cross-track differentials are meaningful.
 4. **Downbeat ambiguity** (librosa fallback grid only). Bar phase is a heuristic (strongest kick among the 4 beat phases); in music where every beat carries a kick, bars may be offset by 1–3 beats from the producer's intent. Beat This! predicts downbeats directly; boundaries and 16-bar phrasing hold relatively either way.
 5. **Breakdown windows.** Inside kickless breakdowns the 16th grid is interpolated from surrounding beats and drifts; treat grids there as approximate and lean on the spectrogram. Same reason the deep-pass slice must be a groove section.

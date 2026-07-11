@@ -10,4 +10,6 @@ midi/
 *.mp3
 *.flac
 *.ogg
+*.aiff
+*.aif
 *.mid

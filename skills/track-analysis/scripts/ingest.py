@@ -4,6 +4,10 @@ Part of the track-analysis skill. Output schema, grid notation, and known
 failure modes: ../references/dossier-format.md
 
 Usage: python ingest.py track.mp3 [track2.wav ...] --windows 1:30,3:00 --out dossier
+
+Without --windows only the whole-track outputs are produced (overview.png,
+grid, boundaries, loudness, key) — look at overview.png, pick timestamps, rerun.
+Window reruns merge into an existing dossier.json instead of replacing it.
 """
 import json
 from pathlib import Path
@@ -268,6 +272,17 @@ def analyze(path, out_root, windows_sec):
         "boundaries": [{"bar": int(b), "time": round(float(bar_starts[b]), 2)} for b in bounds],
         "windows": {},
     }
+    # windows accumulate across runs so a rerun with new timestamps extends the dossier
+    prev = out / "dossier.json"
+    if prev.exists():
+        try:
+            dossier["windows"] = json.loads(prev.read_text()).get("windows", {})
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not windows_sec:
+        print("no --windows given: whole-track outputs only; rerun with --windows "
+              "at the timestamps under discussion for drum grids + spectrograms")
 
     n_bars_win = min(4, len(bar_starts) - 1)
     for w in windows_sec:
@@ -292,11 +307,12 @@ if __name__ == "__main__":
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("audio", nargs="+", help="audio file(s): wav/mp3/flac/ogg")
-    ap.add_argument("--windows", default="1:30,3:00",
-                    help="comma-separated timestamps to slice (M:SS or seconds)")
+    ap.add_argument("audio", nargs="+", help="audio file(s): wav/mp3/aiff/flac/ogg")
+    ap.add_argument("--windows", default=None,
+                    help="comma-separated timestamps to slice (M:SS or seconds); "
+                         "omit for whole-track overview only")
     ap.add_argument("--out", default="dossier", help="output root directory")
     args = ap.parse_args()
-    windows = [parse_timestamp(w) for w in args.windows.split(",")]
+    windows = [parse_timestamp(w) for w in args.windows.split(",")] if args.windows else []
     for path in args.audio:
         analyze(path, args.out, windows)
