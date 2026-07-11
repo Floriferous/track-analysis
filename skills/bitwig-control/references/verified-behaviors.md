@@ -42,6 +42,14 @@ readback is a guess, not a behavior.
   track's empty slot creates a playing audio clip — verified with a sample-pack
   loop, VU-confirmed sound (track peak 86). No instrument needed. Full sample
   library = fair game for clip-based workflows.
+- **Preset browsing end-to-end works, even for plugins**: `/browser/preset` on
+  a pinned VST (Diva) listed its indexed presets, the Category filter stepped
+  to Bass in one move with live result feedback, `result/+` stepping showed
+  reliable `isSelected`, and `commit` loaded the preset — VU-confirmed sound
+  after. Plugin *presets* are browsable even though plugin *devices* are not.
+- **Device and track removal work**: `/device/remove` (readback: exists 0) and
+  `/track/{n}/remove` (bank shifts, explicit track names survive as defaults
+  reset). Also live-verified: `/track/{n}/name`, `/scene/{n}/name`.
 - **Scene-based arrangement**: filling a track's slot *column* with variations
   and launching rows via `/scene/{n}/launch` gives clean, launch-quantized
   transitions — the previous row's clips stop automatically, both tracks
