@@ -56,12 +56,17 @@ def corr(x, y):
 
 
 pump_r = corr(a["pump"]["curve"], b["pump"]["curve"])
-hat_r = corr(a["hat_contour"]["vel"], b["hat_contour"]["vel"])
 row("pump shape correlation", f"{pump_r:.2f}" if pump_r is not None else "n/a", "")
-if hat_r is None:
-    row("hat contour correlation", "n/a", "(no hats detected in one slice)")
+# a contour built on a handful of hits is noise, not an accent skeleton
+na, nb = sum(a["hat_contour"]["hits"]), sum(b["hat_contour"]["hits"])
+if min(na, nb) < 16:
+    row("hat contour correlation", "n/a", f"(too few hats for a contour: {na} vs {nb} hits)")
 else:
-    row("hat contour correlation", f"{hat_r:.2f}", f"(accent skeletons {'match' if hat_r > 0.7 else 'differ'})")
+    hat_r = corr(a["hat_contour"]["vel"], b["hat_contour"]["vel"])
+    if hat_r is None:
+        row("hat contour correlation", "n/a", "(no hats detected in one slice)")
+    else:
+        row("hat contour correlation", f"{hat_r:.2f}", f"(accent skeletons {'match' if hat_r > 0.7 else 'differ'})")
 for band, wa in a["stereo_width_side_share"].items():
     wb = b["stereo_width_side_share"][band]
     flag = "  <-- differs" if abs(wa - wb) > 0.12 else ""

@@ -290,14 +290,26 @@ def analyze(path, out_root, windows_sec):
         label = f"{int(w // 60)}m{int(w % 60):02d}s"
         print(f"\n-- window @{label}: bars {bar_idx}-{bar_idx + n_bars_win} ({fmt_time(t0)}–{fmt_time(t1)}) --")
         print(render_grid_text(grids, n_bars_win))
+        band_sd = {}
         for name, hits in grids.items():
             on_grid = [h for h in hits if abs(h["offset_ms"]) < 40]
             if on_grid:
                 offs = [h["offset_ms"] for h in on_grid]
+                band_sd[name] = (len(on_grid), float(np.std(offs)))
                 print(f"   {name}: {len(on_grid)} hits, offset mean {np.mean(offs):+.1f}ms sd {np.std(offs):.1f}ms")
+        # failure mode 2 auto-flag: a loose sub band against tight other bands means
+        # a rolling bassline is polluting the kick band, not a loose kick
+        sub = next((v for k, v in band_sd.items() if k.startswith("sub")), None)
+        others = [sd for k, (n, sd) in band_sd.items() if not k.startswith("sub") and n >= 4]
+        sub_suspect = bool(sub and sub[0] >= 6 and sub[1] >= 15 and others and np.median(others) <= 8)
+        if sub_suspect:
+            print(f"   WARNING: sub/kick row unreliable (offset sd {sub[1]:.0f}ms vs {np.median(others):.0f}ms in other bands)"
+                  " — failure mode 2: rolling bass polluting the kick band;"
+                  " trust the spectrogram or the deep pass's drums stem")
         spectrogram_png(y, sr, t0, t1, out / f"spec_{label}.png",
                         f"{slug} @ {label} (bars {bar_idx}-{bar_idx + n_bars_win})", beats)
-        dossier["windows"][label] = {"t0": round(t0, 2), "t1": round(t1, 2), "bar": bar_idx, "grids": grids}
+        dossier["windows"][label] = {"t0": round(t0, 2), "t1": round(t1, 2), "bar": bar_idx,
+                                     "sub_grid_suspect": sub_suspect, "grids": grids}
 
     (out / "dossier.json").write_text(json.dumps(dossier, indent=1))
     print(f"\nwrote {out}")
