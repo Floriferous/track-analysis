@@ -117,7 +117,9 @@ name · The Grid and plugin-internal UIs.
 - `references/setup.md` — one-time machine setup; read when `ping` fails on a
   fresh machine.
 - `references/osc-protocol.md` — address reference; read before composing any
-  `raw` command.
+  `raw` command. Its ground truth is the DrivenByMoss source at
+  `opensrc/DrivenByMoss` (fetch instructions in the reference's header) —
+  read the module class when the table falls short.
 - `references/verified-behaviors.md` — the evidence log behind every rule
   here, plus the untested frontier; read before relying on an address or
   behavior no task above covers, and extend it the same way — one experiment,

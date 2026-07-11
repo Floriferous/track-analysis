@@ -4,6 +4,14 @@ Curated from the official protocol doc and manual (DrivenByMoss 26.6.2). Full
 reference: <https://github.com/git-moss/DrivenByMoss-Documentation/blob/master/Generic-Tools-Protocols/Open-Sound-Control-(OSC).md>
 and the manual PDF bundled in the download.
 
+**Ground truth is the implementation**: `opensrc/DrivenByMoss/src/main/java/
+de/mossgrabers/controller/osc/module/` — one module class per address family
+(Transport, Track, Clip, Scene, Device, Browser, Midi, Marker, Project,
+Global). Read the module before concluding an address doesn't exist; the docs
+lag the code (e.g. `/scene/add` exists in SceneModule but not in this table).
+If the `opensrc/` symlink is missing: `npx opensrc fetch git-moss/DrivenByMoss`
+then symlink the printed path to `opensrc/DrivenByMoss`.
+
 All indices are **bank-relative 1..8** (a window onto the project, not absolute
 positions). `/track/bank/{+,-}` and `/device/bank/page/{+,-}` slide the window.
 Bank size is a DrivenByMoss preference (default 8).

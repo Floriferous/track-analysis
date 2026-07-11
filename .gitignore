@@ -13,3 +13,5 @@ midi/
 *.aiff
 *.aif
 *.mid
+# dependency source (opensrc cache symlinks)
+opensrc/
