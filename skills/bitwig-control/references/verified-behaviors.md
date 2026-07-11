@@ -32,6 +32,13 @@ readback is a guess, not a behavior.
   ~100 ms — the only available "did that make sound?" check. (A silent track
   with a playing clip = instrument missing or routing broken.)
 - **Undo/redo**: `/undo`, `/redo` fire (blind — see limits).
+- **Scene-based arrangement**: filling a track's slot *column* with variations
+  and launching rows via `/scene/{n}/launch` gives clean, launch-quantized
+  transitions — the previous row's clips stop automatically, both tracks
+  switch in sync on the bar. Scenes exist by default (a new project has 8;
+  names/colors stream as `/scene/{n}/name` etc.). The same MIDI file can be
+  inserted into multiple slots. This is the natural way to sketch an
+  arrangement arc (intro → build → drop → fill) from analysis data.
 
 ## Verified limits
 
@@ -73,7 +80,8 @@ readback is a guess, not a behavior.
 
 ## Untested
 
-Track remove/reorder, banks beyond 8 (`/track/bank/+`), markers, `insertFile`
-with audio files, `/time` write effect (unverifiable without position
-feedback), value resolutions above 128, `/browser/preset` commit flow
-end-to-end, automation writing, cue markers, project save.
+Track remove/reorder, banks beyond 8 (`/track/bank/+`), adding scenes beyond
+the project's existing rows, markers, `insertFile` with audio files, `/time`
+write effect (unverifiable without position feedback), value resolutions above
+128, `/browser/preset` commit flow end-to-end, automation writing, cue
+markers, project save.
