@@ -95,10 +95,25 @@ def cmd_params(_):
 
 
 def cmd_param(args):
+    """Write, then verify via readback — the GUI user shares the cursor device,
+    so a write can silently land on a different device than intended."""
     v = args.value
     value = round(v * (RESOLUTION - 1)) if isinstance(v, float) and 0 <= v <= 1 else int(v)
-    client().send_message(f"/device/param/{args.index}/value", value)
-    print(f"param {args.index} <- {value}/{RESOLUTION - 1}")
+    key = f"/device/param/{args.index}/value"
+    c = client()
+    c.send_message(key, value)
+    time.sleep(0.4)
+    state = collect_feedback(1.2)
+    if state.get(key, (None,))[0] != value:
+        c.send_message(key, value)  # one retry
+        time.sleep(0.4)
+        state = collect_feedback(1.2)
+    got = state.get(key, (None,))[0]
+    dev = state.get("/device/name", ("?",))[0]
+    name = state.get(f"/device/param/{args.index}/name", ("?",))[0]
+    vstr = state.get(f"/device/param/{args.index}/valueStr", ("",))[0]
+    status = "OK" if got == value else f"MISMATCH: reads {got} — cursor moved? check `params`"
+    print(f"{dev} / {name} <- {value}/{RESOLUTION - 1} ({vstr})  [{status}]")
 
 
 def cmd_note(args):

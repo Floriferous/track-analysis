@@ -47,8 +47,7 @@ through `scripts/bw.py` — one-shot CLI commands, no daemon. This pairs with th
 
 ```
 bw.py tempo 125                                   # match the analyzed BPM
-bw.py clip-create 1 1 16                          # track 1, slot 1, 4 bars
-bw.py clip-insert-file 1 1 /abs/path/groove.mid   # from midi.py export
+bw.py clip-insert-file 1 1 /abs/path/groove.mid   # into an EMPTY slot — creates + fills
 bw.py clip-launch 1 1
 ```
 
@@ -58,14 +57,29 @@ bw.py clip-launch 1 1
   project clips). `bw.py clip-insert-file` refuses non-empty slots unless
   `--force`. Prefer working in a scratch project or an empty scene, and confirm
   with the user before writing into a project that matters.
+- `clip-create` before `insertFile` is an anti-pattern: a created clip has
+  `hasContent 1`, so the guard refuses it. `clip-create` exists for making an
+  empty clip to record or draw into.
+- Clips take their name from the MIDI file's track name — name your
+  pretty_midi instruments.
+- **Hearing check**: while a clip or note plays, `/track/{n}/vu` in the
+  feedback goes nonzero within ~100 ms. Playing clip + zero VU = missing
+  instrument or broken routing.
 - MIDI-file insertion preserves the exported micro-offsets and velocities
   exactly. `vkb_midi` notes do not (UDP timing) — use `note` for auditioning a
-  sound, never for recording a groove.
+  sound, never for recording a groove. Notes broadcast to **every**
+  record-armed/monitoring track: arm exactly one before playing.
 - Drum grooves from `midi.py` land on General-MIDI-ish drum notes (kick 36,
   hats 42/46); route the clip to a drum machine/sampler accordingly, or ask the
   user what instrument the track holds.
 
 ## Editing a synth
+
+The cursor device is **shared state with the human at the GUI** — their clicks
+move it between your write and your readback (observed live: a run of param
+writes silently landed elsewhere while the user was adding a device). Announce
+device edits, pin the cursor when working (`raw /device/pinned 1`), and treat
+readback as the write — `bw.py param` verifies and retries automatically.
 
 1. Select the device (user clicks it, or walk the chain: `bw.py device +`,
    `bw.py state /device`).
@@ -115,3 +129,7 @@ bw.py clip-launch 1 1
 - `scripts/bw.py` — the CLI; env-var config at the top.
 - `references/osc-protocol.md` — curated OSC address reference (clips, device,
   browser, vkb_midi, feedback semantics).
+- `references/verified-behaviors.md` — the experiment log: every claim tested
+  live with readbacks, plus field rules and the untested frontier. Extend it
+  the same way — one experiment, one readback, one entry — and consult it
+  before assuming an address works.

@@ -27,6 +27,7 @@ Bank size is a DrivenByMoss preference (default 8).
 | `/track/{1-8}/clip/{1-8}/select` | | |
 | `/clip/create` | `{beats}` | on the cursor track |
 | `/clip/stopall` | | stop all clips |
+| `/scene/{1-8}/launch` | | launch a whole scene row (verified) |
 
 ## Tracks
 
@@ -35,6 +36,9 @@ Bank size is a DrivenByMoss preference (default 8).
 
 `/track/add/instrument` and `/track/add/audio` — append a new track (verified
 working; the new track lands at the end of the bank).
+
+Feedback extras: `/track/{n}/vu` (live level meter — the "hearing" proxy),
+`/track/{n}/send/{1-8}/volume(+Str)`, `/master/vu`, `/track/selected/*`.
 
 ## Device / synth editing (cursor device)
 
