@@ -32,6 +32,16 @@ readback is a guess, not a behavior.
   ~100 ms — the only available "did that make sound?" check. (A silent track
   with a playing clip = instrument missing or routing broken.)
 - **Undo/redo**: `/undo`, `/redo` fire (blind — see limits).
+- **Adding Bitwig devices end-to-end**: on an *empty instrument track*,
+  `/browser/device/after` opens contextually pre-filtered to instruments —
+  Drum Machine sat at result 2. `/browser/result/+` steps with reliable
+  `isSelected` readback there; `/browser/commit` landed the device (verified:
+  `/device/name` = Drum Machine, track renamed). The contextual pre-filter is
+  the trick — browsing from a bare track skips the filter-column dance.
+- **Samples into audio tracks**: `insertFile` with a `.wav` into an audio
+  track's empty slot creates a playing audio clip — verified with a sample-pack
+  loop, VU-confirmed sound (track peak 86). No instrument needed. Full sample
+  library = fair game for clip-based workflows.
 - **Scene-based arrangement**: filling a track's slot *column* with variations
   and launching rows via `/scene/{n}/launch` gives clean, launch-quantized
   transitions — the previous row's clips stop automatically, both tracks
@@ -61,7 +71,17 @@ readback is a guess, not a behavior.
   silently. Feedback delta is the only success signal.
 - **Browser**: no search-by-name; result feedback can stay stale after filter
   changes (survives `/refresh`); category filters hide container devices (Drum
-  Machine under Category=Drums shows only presets). Coarse moves only.
+  Machine under Category=Drums shows only presets). Coarse moves only —
+  except the contextual empty-track flow above, which is genuinely usable.
+- **Plugins (VST3/CLAP) were not reachable in the OSC browser**: the
+  device-insertion view listed only Bitwig natives (no Diva/Serum/Pigments in
+  the alphabetical results), no VST/CLAP entry in the Device Type filter, and
+  the Location tree is ~100 flat entries deep — blind-stepping it is
+  impractical. Unresolved whether a plugins node exists further down. Working
+  split: the human adds the plugin; parameter control afterwards is
+  device-agnostic (remote-control pages work the same for plugins).
+- **Empty containers make no sound**: a freshly added Drum Machine has empty
+  pads; loading kits/samples into it is preset-browser or GUI territory.
 - **Undo is blind**: history unreadable, and an OSC tempo change did not revert
   via `/undo`. After a mistake in a real project, narrate exactly what changed
   and let the user drive Cmd+Z.
