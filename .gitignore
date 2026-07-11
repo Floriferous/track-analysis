@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+# analysis outputs
+dossier/
+deep/
+stems/
+midi/
+# audio
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.mid
