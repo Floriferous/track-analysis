@@ -1,0 +1,221 @@
+"""Bitwig Studio control over OSC via the DrivenByMoss extension.
+
+Part of the bitwig-control skill. Address reference: ../references/osc-protocol.md
+Requires: DrivenByMoss's "Open Sound Control" controller active in Bitwig
+(receive port 8000, send host 127.0.0.1, send port 9000 — the defaults).
+
+Usage examples:
+  python bw.py ping                       # verify the OSC link (listens for feedback)
+  python bw.py state /device              # dump live state, filtered by address prefix
+  python bw.py play | stop | tempo 125
+  python bw.py note 1 36 100 --dur 0.2    # channel, note, velocity
+  python bw.py clip-create 1 1 16         # track, slot, length in beats
+  python bw.py clip-insert-file 1 1 /abs/path/groove.mid
+  python bw.py clip-launch 1 1
+  python bw.py params                     # names+values of the selected device page
+  python bw.py param 3 0.5                # set knob 3 of the current page (0..1 float)
+  python bw.py raw /device/+              # escape hatch: any address, typed args
+"""
+import argparse
+import os
+import threading
+import time
+
+from pythonosc import dispatcher, osc_server, udp_client
+
+HOST = os.environ.get("BITWIG_OSC_HOST", "127.0.0.1")
+SEND_PORT = int(os.environ.get("BITWIG_OSC_SEND_PORT", "8000"))     # DBM listens here
+FEEDBACK_PORT = int(os.environ.get("BITWIG_OSC_FEEDBACK_PORT", "9000"))  # DBM sends here
+RESOLUTION = int(os.environ.get("BITWIG_OSC_RESOLUTION", "128"))    # DBM "Value resolution"
+
+
+def client():
+    return udp_client.SimpleUDPClient(HOST, SEND_PORT)
+
+
+def typed(arg):
+    for cast in (int, float):
+        try:
+            return cast(arg)
+        except ValueError:
+            pass
+    return arg
+
+
+def collect_feedback(seconds, send_refresh=True):
+    """Listen on the feedback port; return {address: last args}. DrivenByMoss
+    streams state on change plus heartbeat pings; /refresh asks for everything."""
+    state = {}
+    disp = dispatcher.Dispatcher()
+    disp.set_default_handler(lambda addr, *args: state.__setitem__(addr, args))
+    server = osc_server.ThreadingOSCUDPServer((HOST, FEEDBACK_PORT), disp)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    if send_refresh:
+        client().send_message("/refresh", 1)
+    time.sleep(seconds)
+    server.shutdown()
+    return state
+
+
+def cmd_ping(_):
+    state = collect_feedback(2.0)
+    if state:
+        print(f"OK: {len(state)} state addresses received from Bitwig")
+        for k in ("/project/name", "/tempo/raw", "/track/selected/name", "/device/name"):
+            if k in state:
+                print(f"  {k} = {state[k]}")
+    else:
+        print("NO FEEDBACK. Checklist: Bitwig running? OSC controller added in "
+              "Dashboard > Settings > Controllers (Utilities > Open Sound Control)? "
+              f"Send host {HOST}, send port {FEEDBACK_PORT}, receive port {SEND_PORT}?")
+        raise SystemExit(1)
+
+
+def cmd_state(args):
+    state = collect_feedback(2.0)
+    prefix = args.prefix or "/"
+    for addr in sorted(state):
+        if addr.startswith(prefix):
+            vals = " ".join(str(v) for v in state[addr])
+            print(f"{addr} {vals}")
+
+
+def cmd_params(_):
+    state = collect_feedback(2.0)
+    dev = state.get("/device/name", ("?",))[0]
+    page = state.get("/device/page/selected/name", ("?",))[0]
+    print(f"device: {dev} | page: {page}")
+    for i in range(1, 9):
+        name = state.get(f"/device/param/{i}/name", ("",))[0]
+        val = state.get(f"/device/param/{i}/value", ("",))
+        disp_val = state.get(f"/device/param/{i}/valueStr", val)
+        if name:
+            print(f"  {i}: {name} = {disp_val[0] if disp_val else '?'}")
+
+
+def cmd_param(args):
+    v = args.value
+    value = round(v * (RESOLUTION - 1)) if isinstance(v, float) and 0 <= v <= 1 else int(v)
+    client().send_message(f"/device/param/{args.index}/value", value)
+    print(f"param {args.index} <- {value}/{RESOLUTION - 1}")
+
+
+def cmd_note(args):
+    c = client()
+    c.send_message(f"/vkb_midi/{args.channel}/note/{args.note}", args.velocity)
+    time.sleep(args.dur)
+    c.send_message(f"/vkb_midi/{args.channel}/note/{args.note}", 0)
+
+
+def cmd_insert_file(args):
+    """insertFile REPLACES the slot's content, and unnamed clips have blank
+    names — hasContent is the only truthful emptiness check. Guard on it."""
+    key = f"/track/{args.track}/clip/{args.slot}/hasContent"
+    state = collect_feedback(1.5)
+    has = state.get(key, (None,))[0]
+    if has is None:
+        print(f"cannot read {key} — slot outside the current bank window?")
+        raise SystemExit(1)
+    if has and not args.force:
+        print(f"REFUSING: track {args.track} slot {args.slot} already has content "
+              "(would be replaced). Pick an empty slot or pass --force.")
+        raise SystemExit(1)
+    client().send_message(f"/track/{args.track}/clip/{args.slot}/insertFile",
+                          os.path.abspath(args.path))
+    time.sleep(1.0)
+    after = collect_feedback(1.5, send_refresh=True).get(key, (None,))[0]
+    print(f"inserted; {key} = {after}")
+
+
+def cmd_raw(args):
+    client().send_message(args.address, [typed(a) for a in args.args] or 1)
+    print(f"sent {args.address} {args.args}")
+
+
+def simple(address, value=None):
+    def run(args):
+        val = value(args) if callable(value) else value
+        client().send_message(address(args) if callable(address) else address,
+                              val if val is not None else 1)
+    return run
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("ping").set_defaults(fn=cmd_ping)
+    p = sub.add_parser("state")
+    p.add_argument("prefix", nargs="?", help="address prefix filter, e.g. /device")
+    p.set_defaults(fn=cmd_state)
+
+    sub.add_parser("play").set_defaults(fn=simple("/play"))
+    sub.add_parser("stop").set_defaults(fn=simple("/stop"))
+    sub.add_parser("record").set_defaults(fn=simple("/record"))
+    p = sub.add_parser("tempo")
+    p.add_argument("bpm", type=float)
+    p.set_defaults(fn=simple("/tempo/raw", lambda a: a.bpm))
+
+    p = sub.add_parser("note")
+    p.add_argument("channel", type=int)
+    p.add_argument("note", type=int)
+    p.add_argument("velocity", type=int)
+    p.add_argument("--dur", type=float, default=0.15)
+    p.set_defaults(fn=cmd_note)
+
+    for name, addr in (("clip-create", "create"), ("clip-launch", "launch")):
+        p = sub.add_parser(name)
+        p.add_argument("track", type=int)
+        p.add_argument("slot", type=int)
+        if name == "clip-create":
+            p.add_argument("beats", type=int)
+            p.set_defaults(fn=simple(lambda a: f"/track/{a.track}/clip/{a.slot}/create", lambda a: a.beats))
+        else:
+            p.set_defaults(fn=simple(lambda a: f"/track/{a.track}/clip/{a.slot}/launch"))
+    p = sub.add_parser("clip-insert-file")
+    p.add_argument("track", type=int)
+    p.add_argument("slot", type=int)
+    p.add_argument("path")
+    p.add_argument("--force", action="store_true", help="overwrite a non-empty slot")
+    p.set_defaults(fn=cmd_insert_file)
+    sub.add_parser("undo").set_defaults(fn=simple("/undo"))
+    sub.add_parser("redo").set_defaults(fn=simple("/redo"))
+
+    sub.add_parser("params").set_defaults(fn=cmd_params)
+    p = sub.add_parser("param")
+    p.add_argument("index", type=int, choices=range(1, 9))
+    p.add_argument("value", type=typed, help="0..1 float (scaled) or raw int")
+    p.set_defaults(fn=cmd_param)
+    p = sub.add_parser("page")
+    p.add_argument("which", help="1-8 or + or -")
+    p.set_defaults(fn=simple(lambda a: f"/device/page/{a.which}/selected"
+                             if a.which.isdigit() else f"/device/param/{a.which}"))
+    p = sub.add_parser("device")
+    p.add_argument("which", help="+ or - to walk the device chain")
+    p.set_defaults(fn=simple(lambda a: f"/device/{a.which}"))
+
+    for name, addr in (("browser-preset", "/browser/preset"),
+                       ("browser-device-after", "/browser/device/after"),
+                       ("browser-commit", "/browser/commit"),
+                       ("browser-cancel", "/browser/cancel")):
+        sub.add_parser(name).set_defaults(fn=simple(addr))
+    p = sub.add_parser("browser-filter")
+    p.add_argument("column", type=int, choices=range(1, 7))
+    p.add_argument("dir", choices=["+", "-", "reset"])
+    p.set_defaults(fn=simple(lambda a: f"/browser/filter/{a.column}/{a.dir}"))
+    p = sub.add_parser("browser-result")
+    p.add_argument("dir", choices=["+", "-"])
+    p.set_defaults(fn=simple(lambda a: f"/browser/result/{a.dir}"))
+
+    p = sub.add_parser("raw")
+    p.add_argument("address")
+    p.add_argument("args", nargs="*")
+    p.set_defaults(fn=cmd_raw)
+
+    args = ap.parse_args()
+    args.fn(args)
+
+
+if __name__ == "__main__":
+    main()
