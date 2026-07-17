@@ -103,6 +103,27 @@ anything beyond that flow — a specific preset by name, deep filter navigation
 playing audio clip — same guard, same hearing check, no instrument needed. The
 user's sample library is fair game for clip work.
 
+### The tweak loop (tune a sound by measurement)
+
+You cannot hear; this loop is how you tweak anyway. One-time per project:
+the print track's input must be the Master bus (human step, see setup
+walk-through in `references/verified-behaviors.md` context). Then iterate:
+
+```
+bw.py param 3 0.6            # or lastparam via the user's click
+python capture.py --project-dir <proj> --solo <track> --bars 1 --json
+```
+
+`capture.py` records the playing groove into a print-track slot, waits for
+the WAV in the project's `recordings/` folder, returns hear.py metrics
+(f0, harmonic ladder, band shares, level) as JSON, and frees the slot —
+~7–9 s per iteration when the groove keeps playing between calls. Launch the
+scene once at the start (`--scene N` on the first capture); leave it playing.
+Done when the measured profile matches the target (a reference stem's
+hear.py output is the natural target) or the user's ears approve. State the
+target numbers before the first iteration — a loop without a numeric target
+is just wiggling knobs.
+
 ### Recover from a mistake
 
 Stop the sound first (`raw /clip/stopall`, `stop`), then narrate exactly what

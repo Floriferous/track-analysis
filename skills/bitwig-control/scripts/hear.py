@@ -8,6 +8,7 @@ fundamental, harmonics, band energy split, level. For beat-aware deep analysis
 Usage: python hear.py <audio.wav> [--start s] [--dur s]
 """
 import argparse
+import json
 
 import numpy as np
 import soundfile as sf
@@ -37,20 +38,32 @@ def main():
     ap.add_argument("audio")
     ap.add_argument("--start", type=float, default=0.0, help="offset into the file (s)")
     ap.add_argument("--dur", type=float, default=None, help="analysis length (s)")
+    ap.add_argument("--json", action="store_true", help="machine-readable output for loop scripts")
     args = ap.parse_args()
 
     y, sr = sf.read(args.audio, always_2d=True)
     y = y[int(args.start * sr):]
     if args.dur:
         y = y[:int(args.dur * sr)]
+    if len(y) < sr // 2:
+        msg = f"only {len(y) / sr:.2f}s of audio after --start/--dur; need >=0.5s"
+        print(json.dumps({"error": msg}) if args.json else f"ERROR: {msg}")
+        raise SystemExit(1)
     mono = y.mean(axis=1)
     dur = len(mono) / sr
 
     peak_db = 20 * np.log10(np.abs(y).max() + 1e-12)
     rms_db = 20 * np.log10(np.sqrt((mono ** 2).mean()) + 1e-12)
-    print(f"{args.audio}: {dur:.2f}s @ {sr}Hz | peak {peak_db:+.1f} dBFS, rms {rms_db:+.1f} dBFS")
+    result = {"file": args.audio, "dur_s": round(dur, 2), "sr": sr,
+              "peak_dbfs": round(float(peak_db), 1), "rms_dbfs": round(float(rms_db), 1)}
+    if not args.json:
+        print(f"{args.audio}: {dur:.2f}s @ {sr}Hz | peak {peak_db:+.1f} dBFS, rms {rms_db:+.1f} dBFS")
     if peak_db < -60:
-        print("  (essentially silence — check routing/arming)")
+        if args.json:
+            result["silence"] = True
+            print(json.dumps(result))
+        else:
+            print("  (essentially silence — check routing/arming)")
         return
 
     # median magnitude spectrum: robust against transients, shows the sustained timbre
@@ -63,11 +76,15 @@ def main():
     freqs = np.fft.rfftfreq(n_fft, 1 / sr)
 
     total = (S ** 2).sum() + 1e-12
-    print("band energy:")
+    result["bands"] = {}
+    if not args.json:
+        print("band energy:")
     for name, (lo, hi) in BANDS.items():
         share = (S[(freqs >= lo) & (freqs < hi)] ** 2).sum() / total
-        bar = "#" * int(round(share * 40))
-        print(f"  {name:<20} {100 * share:5.1f}%  {bar}")
+        result["bands"][name.split(" ")[0]] = round(100 * float(share), 1)
+        if not args.json:
+            bar = "#" * int(round(share * 40))
+            print(f"  {name:<20} {100 * share:5.1f}%  {bar}")
 
     # spectral peaks -> fundamental + harmonic series
     import scipy.signal
@@ -76,14 +93,23 @@ def main():
     top = sorted(peaks[order], key=lambda p: freqs[p])
     if len(top):
         f0 = freqs[top[0]]
-        print(f"lowest strong peak (fundamental): {f0:.1f} Hz = {note_name(f0)}")
-        print("strongest peaks:")
+        result["f0_hz"] = round(float(f0), 1)
+        result["f0_note"] = note_name(f0)
+        result["peaks"] = []
+        if not args.json:
+            print(f"lowest strong peak (fundamental): {f0:.1f} Hz = {note_name(f0)}")
+            print("strongest peaks:")
         for p in sorted(top, key=lambda p: -S[p])[:8]:
             f = freqs[p]
             rel = 20 * np.log10(S[p] / S.max() + 1e-12)
             harm = f / f0
             tag = f"~H{harm:.0f}" if abs(harm - round(harm)) < 0.06 and harm >= 1 else ""
-            print(f"  {f:7.1f} Hz  {rel:6.1f} dB  {note_name(f):<10} {tag}")
+            result["peaks"].append({"hz": round(float(f), 1), "rel_db": round(float(rel), 1),
+                                    "note": note_name(f), "harmonic": tag})
+            if not args.json:
+                print(f"  {f:7.1f} Hz  {rel:6.1f} dB  {note_name(f):<10} {tag}")
+    if args.json:
+        print(json.dumps(result))
 
 
 if __name__ == "__main__":
