@@ -39,6 +39,12 @@ def main():
     ap.add_argument("--start", type=float, default=0.0, help="offset into the file (s)")
     ap.add_argument("--dur", type=float, default=None, help="analysis length (s)")
     ap.add_argument("--json", action="store_true", help="machine-readable output for loop scripts")
+    ap.add_argument("--pump-bpm", type=float, default=None,
+                    help="fold the level envelope onto one beat at this BPM: "
+                         "reports duck depth %% and minimum position (sidechain tuning)")
+    ap.add_argument("--pump-band", default=None, metavar="LO,HI",
+                    help="band-limit the pump envelope (Hz), e.g. 120,300 to watch "
+                         "bass harmonics while a kick occupies the sub")
     args = ap.parse_args()
 
     y, sr = sf.read(args.audio, always_2d=True)
@@ -108,6 +114,41 @@ def main():
                                     "note": note_name(f), "harmonic": tag})
             if not args.json:
                 print(f"  {f:7.1f} Hz  {rel:6.1f} dB  {note_name(f):<10} {tag}")
+    if args.pump_bpm:
+        if args.pump_band:
+            import scipy.signal as ss
+            lo, hi = (float(x) for x in args.pump_band.split(","))
+            sos = ss.butter(4, [lo, hi], btype="band", fs=sr, output="sos")
+            mono = ss.sosfilt(sos, mono)
+        # 30ms RMS envelope folded onto one beat -> pump curve
+        win = int(sr * 0.030)
+        hop_e = int(sr * 0.004)  # hop must be finer than the fold bins or bins alias empty
+        env = np.array([np.sqrt((mono[i:i + win] ** 2).mean())
+                        for i in range(0, len(mono) - win, hop_e)])
+        t = (np.arange(len(env)) * hop_e + win // 2) / sr
+        beat = 60.0 / args.pump_bpm
+        phase = (t % beat) / beat
+        nbins = 48
+        curve = np.zeros(nbins)
+        for b in range(nbins):
+            m = (phase >= b / nbins) & (phase < (b + 1) / nbins)
+            if m.any():
+                curve[b] = np.median(env[m])
+        # reference level = the signal's own recovered ceiling, excluding the
+        # first 12% of the beat where a kick's attack transient pollutes the max
+        body = curve[int(0.12 * nbins):]
+        ref = np.percentile(body, 90) + 1e-12
+        duck = 100 * max(0.0, 1 - curve.min() / ref)
+        min_at = 100 * int(np.argmin(curve)) / nbins
+        rec75 = 100 * min(1.0, curve[int(0.75 * nbins)] / ref)
+        result["pump_duck_pct"] = round(float(duck), 1)
+        result["pump_min_at_pct"] = round(float(min_at), 1)
+        result["pump_recovery_at_75_pct"] = round(float(rec75), 1)
+        if not args.json:
+            print(f"pump: duck {duck:.0f}%, minimum at {min_at:.0f}% of beat, "
+                  f"recovered {rec75:.0f}% by the 3/4 mark")
+            bars = np.clip(curve / ref * 8, 0, 8).round().astype(int)
+            print("  " + "".join(" .:-=+*#@"[v] for v in bars))
     if args.json:
         print(json.dumps(result))
 

@@ -51,6 +51,8 @@ def main():
     ap.add_argument("--scene", type=int, help="launch this scene first (else records what's playing)")
     ap.add_argument("--solo", type=int, help="solo this track during the capture")
     ap.add_argument("--json", action="store_true", help="machine-readable hear.py output")
+    ap.add_argument("--pump", action="store_true", help="measure duck depth/shape at the project tempo")
+    ap.add_argument("--pump-band", default=None, metavar="LO,HI", help="band-limit the pump envelope (Hz)")
     args = ap.parse_args()
 
     t_start = time.monotonic()
@@ -94,9 +96,15 @@ def main():
         raise SystemExit(1)
 
     hear = Path(__file__).parent / "hear.py"
-    cmd = [sys.executable, str(hear), str(wav), "--start", str(0.15 * bar), "--dur", str(args.bars * bar * 0.9)]
+    # start offset must be a whole number of beats: the pump fold assumes
+    # t=0 sits on a beat, and recordings begin on a bar boundary
+    cmd = [sys.executable, str(hear), str(wav), "--start", str(bar / 4), "--dur", str(args.bars * bar * 0.9)]
     if args.json:
         cmd.append("--json")
+    if args.pump:
+        cmd += ["--pump-bpm", str(bpm)]
+    if args.pump_band:
+        cmd += ["--pump-band", args.pump_band]
     out = subprocess.run(cmd, capture_output=True, text=True).stdout
     print(out.rstrip())
     print(f"[capture loop: {time.monotonic() - t_start:.1f}s wall]")

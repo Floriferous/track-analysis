@@ -116,13 +116,24 @@ python capture.py --project-dir <proj> --solo <track> --bars 1 --json
 
 `capture.py` records the playing groove into a print-track slot, waits for
 the WAV in the project's `recordings/` folder, returns hear.py metrics
-(f0, harmonic ladder, band shares, level) as JSON, and frees the slot —
-~7–9 s per iteration when the groove keeps playing between calls. Launch the
-scene once at the start (`--scene N` on the first capture); leave it playing.
-Done when the measured profile matches the target (a reference stem's
-hear.py output is the natural target) or the user's ears approve. State the
-target numbers before the first iteration — a loop without a numeric target
-is just wiggling knobs.
+(f0, harmonic ladder, band shares, level, `--pump` duck/shape) as JSON, and
+frees the slot — ~7–9 s per iteration when the groove keeps playing between
+calls. Launch the scene once at the start (`--scene N` on the first capture);
+leave it playing. Done when the measured profile matches the target (a
+reference stem's hear.py output is the natural target) or the user's ears
+approve. State the target numbers before the first iteration — a loop
+without a numeric target is just wiggling knobs.
+
+Sidechain-specific physics (all learned calibrating a real one):
+- **Solo kills the key**: soloing the destination track mutes the key-source
+  track and the pump vanishes. To isolate the pumped signal, **mute the
+  key-source track instead** — a key tapped inside a container (e.g. a Drum
+  Machine pad chain) stays live under track mute.
+- Key from the **kick pad's chain**, not the whole drum track, or hats
+  trigger ducks on the offbeats.
+- Measure pump on a band the pumped signal owns (`--pump-band 120,300` for a
+  bass under a kick); in full-mix captures the floor includes the kick's own
+  in-band energy, so isolated (muted-key) readings run deeper than mix ones.
 
 ### Recover from a mistake
 
