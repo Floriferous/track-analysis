@@ -102,6 +102,15 @@ readback is a guess, not a behavior.
   not revert via `/undo`.
 - **No position/clip-length feedback**: `/time` writes produce no observable
   readback address; clips expose no length/loop state.
+- **Page addressing is window-relative and silently sticky at the ends**
+  (live, Diva 18-page walk): `/device/page/{n}/selected` selects slot *n* of
+  the current 8-wide window — not page *n* of the device — and
+  `/device/param/{+,-}` steps the selected page by one, as a **silent no-op
+  past either end** of the page list. A page index from an enumeration is
+  therefore meaningless as a jump target (incident: "page 12" of a 13-page
+  walk selected the *reverb* and two writes landed on its Wet). `bw.py page
+  <name>` is the safe form: it rewinds, steps, and verifies
+  `/device/page/selected/name` before returning.
 
 - **Plugin format is readable from the project file**: `strings
   <project>.bwproject` reveals each plugin's identity — CLAP entries show

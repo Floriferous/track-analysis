@@ -29,8 +29,9 @@ CHANNEL = 1
 
 # The standard roster, in MIDI "undefined" CC ranges (22-31, 85-89) so it
 # never collides with mod wheel/volume/pan/sustain. CC 14-21 stay reserved
-# for Macros 1-8 (factory map). This table is the single source of truth —
-# SKILL.md's roster table mirrors it.
+# for Macros 1-8 (factory map). Ground truth for what is actually bound is
+# the decoded default.SerumMIDIMap (serumfile.py map); this table is the
+# binding *procedure*, and control-surface.md carries the annotated result.
 ROSTER = [
     (22, "FILTER 1 — Cutoff"),
     (23, "FILTER 1 — Resonance"),

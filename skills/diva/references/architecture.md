@@ -77,12 +77,12 @@ Diva is panels-with-swappable-models (manual p23):
   window names can read stale (`Rotary1/Plate2` appeared in a window whose
   other names were blank). Navigate by stepping `/device/param/+` and
   verifying `/device/page/selected/name` before every write.
-- **The pages-walk index is NOT the `page N` index** (incident 2026-07-17:
-  "page 12" from a 13-page walk selected *Plate2* and two writes landed on
-  the reverb's Wet). `/device/page/{n}` jumps within the current 8-wide
-  *window*; `/device/param/{+,-}` scrolls the window one page at a time —
-  and at the end of the list `+` is a silent no-op (stuck on the last page
-  with no error). Always: step, read the page *name*, only then write.
+- **Navigate pages by name — `bw.py page Lowpass` — never by index**
+  (incident 2026-07-17: a numeric jump selected *Plate2* and two writes
+  landed on the reverb's Wet; mechanism in bitwig-control's
+  verified-behaviors.md). Diva has duplicate page names (two ModEnv, two
+  Plate2 on Pndrosa Beef) — name navigation lands on the first match, so
+  confirm with `params` that the params are the ones you expect.
 - **Timbre is non-stationary when OscMix < 100** (Dual VCO): the two VCOs'
   detune beats on a tens-of-seconds period and band shares swing by ±10
   points between consecutive captures (measured: same knobs scored 1.6 and

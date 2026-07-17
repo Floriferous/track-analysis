@@ -43,6 +43,9 @@ devices from `bitwig-devices`; this skill is the Diva-specific knowledge.
 - **Some params are bipolar with raw 64 ≈ 0** (FilterFM measured): read the
   display's sign around center before sweeping, or a "reduction" turns the
   knob off entirely.
+- **Patches breathe**: detuned-VCO beating swings band shares ±10 points
+  across captures (measured at OscMix < 100). Capture ≥8 bars and trust
+  only the tweak loop's twice-in-a-row criterion.
 - Preset loading over OSC works (browser preset flow, Category filter), and
   the pages change with the preset — re-enumerate after every load.
 - CPU: Diva is expensive; if the engine chokes during captures, ask the user

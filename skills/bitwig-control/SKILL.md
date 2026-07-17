@@ -81,8 +81,9 @@ parameter maps, anchor values, and verified presets that beat rediscovery.
    `bw.py device +` — then `raw /device/pinned 1` to hold it against cockpit
    churn.
 2. `bw.py params` — the current page's 8 knobs with names and display values;
-   `bw.py page +` / `page 2` switches pages. Set only knobs you've just
-   listed: index 3 is a different knob on every page.
+   `bw.py page <Name>` switches pages by *name*, verified (numeric and `+`/`-`
+   forms exist but address the window and silently stick at the ends). Set
+   only knobs you've just listed: index 3 is a different knob on every page.
 3. `bw.py param 3 0.5` (floats 0..1 scale to the configured resolution) —
    done when it prints `[OK]` with the intended display value; `MISMATCH`
    means the cursor moved — re-run `params` and re-aim.
@@ -108,9 +109,12 @@ user's sample library is fair game for clip work.
 
 ### The tweak loop (tune a sound by measurement)
 
-You cannot hear; this loop is how you tweak anyway. One-time per project:
-the print track's input must be the Master bus (human step, see setup
-walk-through in `references/verified-behaviors.md` context). Then iterate:
+You cannot hear; this loop is how you tweak anyway — **the capture is the
+readback**: a sound change exists once a capture measures it. The human's
+hands wire routing and click GUI-only controls; every verification is a
+measurement. One-time per project: the print track's input must be the
+Master bus (human step, see setup walk-through in
+`references/verified-behaviors.md` context). Then iterate:
 
 ```
 bw.py param 3 0.6            # or lastparam via the user's click
@@ -122,10 +126,13 @@ the WAV in the project's `recordings/` folder, returns hear.py metrics
 (f0, harmonic ladder, band shares, level, `--pump` duck/shape) as JSON, and
 frees the slot — ~7–9 s per iteration when the groove keeps playing between
 calls. Launch the scene once at the start (`--scene N` on the first capture);
-leave it playing. Done when the measured profile matches the target (a
-reference stem's hear.py output is the natural target) or the user's ears
-approve. State the target numbers before the first iteration — a loop
-without a numeric target is just wiggling knobs.
+leave it playing. Done when the measured profile matches the target **on two
+consecutive captures** (a reference stem's hear.py output is the natural
+target) or the user's ears approve. The repeat is load-bearing: analog-style
+patches drift and beat on tens-of-seconds periods, and a single matching
+capture can be the drift's lucky phase (measured: identical knobs scored 1.6
+then 20.7 against one target). State the target numbers before the first
+iteration — a loop without a numeric target is just wiggling knobs.
 
 Sidechain-specific physics (all learned calibrating a real one):
 - **Solo kills the key**: soloing the destination track mutes the key-source

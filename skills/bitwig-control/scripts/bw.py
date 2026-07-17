@@ -178,6 +178,49 @@ def cmd_insert_file(args):
     print(f"inserted; {key} = {after}")
 
 
+def cmd_page(args):
+    """Select a remote-control page. Digits address the current 8-wide
+    *window* slot and +/- step one page — both silently no-op at the ends of
+    the page list, so the only trustworthy form is BY NAME: rewind to the
+    first page, then step forward reading /device/page/selected/name until
+    it matches (the readback is the write)."""
+    which = args.which
+    c = client()
+
+    def page_name():
+        return collect_feedback(1.2).get("/device/page/selected/name", ("?",))[0]
+
+    if which.isdigit() or which in ("+", "-"):
+        addr = (f"/device/page/{which}/selected" if which.isdigit()
+                else f"/device/param/{which}")
+        c.send_message(addr, 1)
+        time.sleep(0.4)
+        print(f"page: {page_name()}")
+        return
+    target = which.lower()
+    prev = None
+    for _ in range(40):  # rewind to the first page (name stops changing)
+        name = page_name()
+        if name == prev:
+            break
+        prev = name
+        c.send_message("/device/param/-", 1)
+        time.sleep(0.35)
+    seen = []
+    for _ in range(40):
+        name = page_name()
+        if target in name.lower():
+            print(f"page: {name}")
+            return
+        if seen and name == seen[-1]:
+            break
+        seen.append(name)
+        c.send_message("/device/param/+", 1)
+        time.sleep(0.35)
+    print(f"NOT FOUND: no page matching '{which}' — saw: {', '.join(seen)}")
+    raise SystemExit(1)
+
+
 def cmd_pages(args):
     """Walk every remote-control page of the cursor device; dump the full
     param inventory as JSON. Page sets can be preset-dependent (Diva publishes
@@ -299,9 +342,9 @@ def main():
     p.add_argument("value", type=typed, help="0..1 float (scaled) or raw int")
     p.set_defaults(fn=cmd_param)
     p = sub.add_parser("page")
-    p.add_argument("which", help="1-8 or + or -")
-    p.set_defaults(fn=simple(lambda a: f"/device/page/{a.which}/selected"
-                             if a.which.isdigit() else f"/device/param/{a.which}"))
+    p.add_argument("which", help="a page NAME (verified step-to; the reliable "
+                   "form), or 1-8 (current window slot) or + or - (one step)")
+    p.set_defaults(fn=cmd_page)
     p = sub.add_parser("device")
     p.add_argument("which", help="+ or - to walk the device chain")
     p.set_defaults(fn=simple(lambda a: f"/device/{a.which}"))

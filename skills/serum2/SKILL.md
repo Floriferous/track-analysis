@@ -1,6 +1,6 @@
 ---
 name: serum2
-description: Sound-design on Xfer Serum 2 inside Bitwig — driving it over MIDI CC (the only programmatic path), iterating timbre by measurement, and reading/writing Xfer's file formats. Use when a task names Serum — tweaking or building a Serum patch, controlling its knobs, its MIDI maps or preset files, or when a Serum parameter won't respond.
+description: Sound-design on Xfer Serum 2 inside Bitwig — driving it over MIDI CC (the only programmatic path), iterating timbre by measurement, and reading/writing Xfer's file formats. Use when a task names Serum — tweaking or building a patch, its MIDI maps or preset files, or a Serum parameter that won't respond.
 ---
 
 # Serum 2
