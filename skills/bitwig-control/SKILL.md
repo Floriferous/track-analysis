@@ -74,6 +74,9 @@ VU means a missing instrument or broken routing.
 
 ### Tune a synth or device
 
+Named device? Check the `bitwig-devices` skill first — its recipes carry
+parameter maps, anchor values, and verified presets that beat rediscovery.
+
 1. Get the cursor onto the device — user clicks it, or walk with
    `bw.py device +` — then `raw /device/pinned 1` to hold it against cockpit
    churn.
