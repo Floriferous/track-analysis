@@ -107,7 +107,8 @@ def main():
         cmd += ["--pump-band", args.pump_band]
     out = subprocess.run(cmd, capture_output=True, text=True).stdout
     print(out.rstrip())
-    print(f"[capture loop: {time.monotonic() - t_start:.1f}s wall]")
+    if not args.json:
+        print(f"[capture loop: {time.monotonic() - t_start:.1f}s wall]")
 
 
 if __name__ == "__main__":

@@ -51,15 +51,31 @@ Diva is panels-with-swappable-models (manual p23):
 - Displays mirror the GUI knob values — quote them back to the user in
   Diva's own units.
 
-## Working notes (live-verified)
+## Working notes (live-verified, with measured magnitudes)
 
-- Params write like any Bitwig device (`bw.py param`, verify-retry included);
-  a cold write occasionally needs the prime-with-current retry that bw.py
-  already performs.
+- **`Feedback` is the dominant harmonics control** — measured on Pndrosa
+  Beef (Dual VCO + Lowpass): 75→100 moved band shares from 92/5/3 to
+  48/31/21 (sub/bass/low-mid) and H2 from −13 dB to −2.4 dB. One knob,
+  half the timbre. Strongly nonlinear near the top of its range.
+- **`FilterFM` is BIPOLAR and interacts multiplicatively with Feedback**:
+  raw 64 ≈ display 0; the display curve is steep around center (raw 79 →
+  +5.9, raw 92 → +10.8). Zeroing it collapsed the harmonic ladder even with
+  Feedback at max (92/5/3, H2 −27) — at +6…+11 it trades bass-band into
+  low-mid mildly. General rule: **check a param's display sign around raw 64
+  before sweeping — assuming unipolar can turn a knob OFF that was
+  load-bearing.**
+- Params write like any Bitwig device (`bw.py param`, verify-retry
+  included); a cold write occasionally needs the prime-with-current retry
+  bw.py already performs.
 - A parameter exposed on a page whose model is *inactive* silently does
   nothing to the sound (observed: `Shape1` writes on an unused oscillator
   path — `[OK]` readback, zero audible/measured change). The measured
   spectrum, not the readback, proves a knob is live.
+- **Page navigation**: `bw.py pages` enumeration terminates on the first
+  repeated page *name* (duplicate-named pages truncate it), and page-bank
+  window names can read stale (`Rotary1/Plate2` appeared in a window whose
+  other names were blank). Navigate by stepping `/device/param/+` and
+  verifying `/device/page/selected/name` before every write.
 - Tuning fixes are usually better done in the MIDI (octave-transposed clips)
   than by hunting the patch's transpose — see the octave incident in
   `bitwig-control/references/verified-behaviors.md`.

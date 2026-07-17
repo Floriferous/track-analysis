@@ -40,6 +40,9 @@ devices from `bitwig-devices`; this skill is the Diva-specific knowledge.
 - **Sounding pitch may be transposed from written pitch** (3EE packs run
   −12): verify the sounding fundamental with the hearing loop before
   trusting MIDI; fix octave mismatches in the MIDI clip, not the patch.
+- **Some params are bipolar with raw 64 ≈ 0** (FilterFM measured): read the
+  display's sign around center before sweeping, or a "reduction" turns the
+  knob off entirely.
 - Preset loading over OSC works (browser preset flow, Category filter), and
   the pages change with the preset — re-enumerate after every load.
 - CPU: Diva is expensive; if the engine chokes during captures, ask the user
