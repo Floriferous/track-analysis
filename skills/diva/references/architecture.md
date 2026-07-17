@@ -1,8 +1,9 @@
 # Diva ↔ Bitwig: how the synth maps onto the controllable surface
 
 Sources: the official manual in this folder (`Diva-user-guide.pdf`, v1.4.8 —
-page numbers below cite it) and live OSC enumerations against Diva in Bitwig
-5.3. Companion mechanics: the `bitwig-control` skill (`bw.py pages`, `param`,
+page numbers below cite it) and live OSC enumerations against **the CLAP
+build** (`com.u-he.Diva`, verified in the project file) in Bitwig 5.3 — the
+VST3 build's exposure is untested and may differ. Companion mechanics: the `bitwig-control` skill (`bw.py pages`, `param`,
 tweak loop).
 
 ## The one fact that shapes everything

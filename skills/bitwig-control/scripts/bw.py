@@ -205,6 +205,34 @@ def cmd_pages(args):
     print(json.dumps(pages, indent=1))
 
 
+def cmd_lastparam(args):
+    """Write the GUI-focused parameter (the user points, you turn). Cold
+    writes can be rejected takeover-style, so always prime with the current
+    value first; verify by readback like cmd_param."""
+    v = args.value
+    value = round(v * (RESOLUTION - 1)) if isinstance(v, float) and 0 <= v <= 1 else int(v)
+    c = client()
+    state = collect_feedback(1.2)
+    cur = state.get("/device/lastparam/value", (None,))[0]
+    name = state.get("/device/lastparam/name", ("?",))[0]
+    if cur is None or not state.get("/device/lastparam/exists", (0,))[0]:
+        print("no last-touched parameter — ask the user to wiggle the knob first")
+        raise SystemExit(1)
+    if args.expect and args.expect.lower() not in name.lower():
+        print(f"REFUSING: focused param is '{name}', expected '{args.expect}' — "
+              "the user's last click moved the focus; ask them to wiggle the target knob")
+        raise SystemExit(1)
+    c.send_message("/device/lastparam/value", cur)
+    time.sleep(0.2)
+    c.send_message("/device/lastparam/value", value)
+    time.sleep(0.5)
+    state = collect_feedback(1.2)
+    got = state.get("/device/lastparam/value", (None,))[0]
+    vstr = state.get("/device/lastparam/valueStr", ("",))[0]
+    status = "OK" if got == value else f"MISMATCH: reads {got}"
+    print(f"lastparam {name} <- {value}/{RESOLUTION - 1} ({vstr.strip()})  [{status}]")
+
+
 def cmd_raw(args):
     client().send_message(args.address, [typed(a) for a in args.args] or 1)
     print(f"sent {args.address} {args.args}")
@@ -261,6 +289,11 @@ def main():
 
     sub.add_parser("params").set_defaults(fn=cmd_params)
     sub.add_parser("pages").set_defaults(fn=cmd_pages)
+    p = sub.add_parser("lastparam")
+    p.add_argument("value", type=typed, help="0..1 float (scaled) or raw int")
+    p.add_argument("--expect", help="refuse unless the focused param's name contains this "
+                                    "(the focus follows EVERY user click — verify before writing)")
+    p.set_defaults(fn=cmd_lastparam)
     p = sub.add_parser("param")
     p.add_argument("index", type=int, choices=range(1, 9))
     p.add_argument("value", type=typed, help="0..1 float (scaled) or raw int")

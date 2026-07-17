@@ -103,6 +103,21 @@ readback is a guess, not a behavior.
 - **No position/clip-length feedback**: `/time` writes produce no observable
   readback address; clips expose no length/loop state.
 
+- **Plugin format is readable from the project file**: `strings
+  <project>.bwproject` reveals each plugin's identity — CLAP entries show
+  `.clap` paths and string IDs (`com.u-he.Diva`) plus `.clap-preset`
+  states; VST3s show hex class IDs. The only way to answer "which build is
+  this?" without the GUI (OSC feedback carries no format info).
+- **Param exposure is a vendor choice, not a format property**: Diva CLAP
+  publishes a full model-dependent param set; Serum 2 VST3 publishes zero
+  (its params surface only dynamically as GUI-touched, visible to
+  `lastparam`). A format swap is worth one test but no guarantee.
+- **`lastparam` on a zero-param plugin works** (Serum 2 VST3): reads the
+  touched param's name/value, writes land after the prime-with-current
+  unlock — but the focus follows EVERY user click (a filter's power button
+  stole the focus mid-session and a write toggled it off). `bw.py lastparam
+  --expect <name>` guards against writing the wrong control.
+
 ## Incidents (the evidence behind SKILL.md's rules)
 
 - Real project clips were overwritten because empty clip *names* were read as
