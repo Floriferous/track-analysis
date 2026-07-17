@@ -69,6 +69,8 @@ with paramIDs and measured fingerprints: `references/control-surface.md`.
 - `references/control-surface.md` — layers, roster + paramIDs, map-loading
   semantics, why-no-enumeration evidence. Start here every session.
 - `references/file-format.md` — XferJson container spec (maps + presets).
+- `references/patches.md` — banked patch recipes (roster CC states +
+  measured profiles).
 - `references/Serum 2 User Guide.pdf` — official manual (MIDI: p26–27,
   macros: p206–208, prefs: p313+).
 - `scripts/learn_roster.py` — self-paced MIDI-Learn binding session.
