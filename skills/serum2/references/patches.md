@@ -22,5 +22,14 @@ version in `skills/diva/references/patches.md` (this one measured closer).
   open 100 into the H2–H4 region did the real work (52→48 with res 45);
   res above ~50 overshoots low-mid; drive 25–45 added +6–10 dB RMS but
   bent shares off target → left at 0.
-- Not yet in the recipe: sidechain pump (Compressor+ `sidechain-pump` from
-  `bitwig-devices`, keyed off the kick pad) and level balance vs kick.
+- Sidechain (added 2026-07-17): Compressor+ after Serum, keyed from the
+  kick pad chain (POST), `sidechain-pump` recalibrated values — Threshold
+  raw 28 (−37.4 dB), Ratio 127 (1:∞), Attack 13 (0.64 ms), Release 50
+  (134 ms). Measured under kick: pump **98.0 / 12.5 / 100** (duck / min-at
+  / recovery-3/4) vs reference 99/17/100, timbre unchanged (44.0/27.7/28.2).
+- Vs the Diva version (diva/references/patches.md): this patch is *static*
+  — repeat captures agree within ~1 point, where Diva's feedback/VCO-beat
+  swings ±4–10. Use Serum when the reference profile must be hit exactly;
+  Diva for analog movement.
+- Still open: level balance vs kick in the full mix (patch RMS −33 dBFS is
+  quiet — raise track volume, not drive).

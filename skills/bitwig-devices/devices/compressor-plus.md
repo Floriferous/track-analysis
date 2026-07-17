@@ -36,21 +36,29 @@ interpolate between anchors rather than searching.
 
 ## Presets
 
-### `sidechain-pump` — reference-grade kick duck (calibrated 2026-07-12)
+### `sidechain-pump` — reference-grade kick duck (recalibrated 2026-07-17)
 
 Modeled on Bruno (HU) "Pyrodoxine" (deep-pass target: duck ~99%, minimum at
 17% of beat, fully recovered by 3/4).
 
 | param | raw | display |
 |---|---|---|
-| Threshold | 56 | −26.8 dB |
+| Threshold | 28 | −37.4 dB |
 | Ratio | 127 | 1:∞ |
 | Attack | 13 | 0.64 ms |
-| Release | 57 | 199 ms (at 130.4 BPM — keep **release ≈ 0.43 × beat length** at other tempos) |
+| Release | 40–50 | 69–134 ms at 130.4 BPM — **tune by source level**, see below |
 
-Key: kick pad chain (POST). Measured result, isolated bass at 130.4 BPM:
-**duck 93%, minimum at 15% of beat, 92% recovered at 3/4** — within a few
-points of the reference on all three.
+Key: kick pad chain (POST). Measured on two different basses at 130.4 BPM:
+Serum (−35 RMS, release 50): **98.0 / 12.5 / 100**; Diva (−21 RMS, release
+40): **97.8 / 12.5 / 100** (duck / min-at / recovered-at-3/4). The earlier
+shallower calibration (Threshold 56, Release 57) measured 93/15/92 — keep
+it only if a gentler pump is wanted.
+
+**Release trades against source level**: a hotter signal sits deeper into
+the compressor and climbs out slower — Diva at −21 RMS needed release 40
+where Serum at −35 RMS recovered fully at 50. If recovery-at-3/4 reads low,
+shorten release before touching threshold. Reminder: threshold *raw down =
+dB down = deeper duck* (28→−37.4, 56→−26.8, 89→−14.4).
 
 Verify with the bitwig-control tweak loop:
 `capture.py --scene <held-bass scene> --bars 2 --pump --pump-band 120,300`,

@@ -77,6 +77,24 @@ Diva is panels-with-swappable-models (manual p23):
   window names can read stale (`Rotary1/Plate2` appeared in a window whose
   other names were blank). Navigate by stepping `/device/param/+` and
   verifying `/device/page/selected/name` before every write.
+- **The pages-walk index is NOT the `page N` index** (incident 2026-07-17:
+  "page 12" from a 13-page walk selected *Plate2* and two writes landed on
+  the reverb's Wet). `/device/page/{n}` jumps within the current 8-wide
+  *window*; `/device/param/{+,-}` scrolls the window one page at a time —
+  and at the end of the list `+` is a silent no-op (stuck on the last page
+  with no error). Always: step, read the page *name*, only then write.
+- **Timbre is non-stationary when OscMix < 100** (Dual VCO): the two VCOs'
+  detune beats on a tens-of-seconds period and band shares swing by ±10
+  points between consecutive captures (measured: same knobs scored 1.6 and
+  20.7 against a fixed target). Average ≥8 bars AND repeat the capture
+  before trusting any number; a single great reading may be the beat's
+  lucky phase. At OscMix = 100 variance drops to ±4.
+- **Harmonic levers, measured** (Pndrosa Beef): `FilterFM`↑ feeds **H2**
+  (bass band); **`OscMix` is the H3/low-mid lever** (90 vs 127 traded
+  ~10 points of sub into bass+low-mid); `PulseWidth` and lowering filter
+  `Frequency` both *reduced* upper harmonics here — the feedback path needs
+  the filter open, so darkening the filter collapses the whole ladder
+  rather than shaping it.
 - Tuning fixes are usually better done in the MIDI (octave-transposed clips)
   than by hunting the patch's transpose — see the octave incident in
   `bitwig-control/references/verified-behaviors.md`.

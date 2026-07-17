@@ -23,4 +23,13 @@ f0 F1 ~43 Hz, band shares sub/bass/low-mid ≈ 43/29/27, H2/H3 strong).
   44.5/34.2/20.6. Note rms rose ~4 dB with Feedback — rebalance track level
   after applying.
 - Pairs with the Compressor+ `sidechain-pump` recipe (bitwig-devices) keyed
-  from the kick pad.
+  from the kick pad — with the 2026-07-17 recalibration (Threshold 28,
+  Release 40 for this bass's hot −21 dBFS RMS): measured pump
+  **97.8 / 12.5 / 100** vs reference 99/17/100.
+- 2026-07-17 comparison vs the Serum 2 version (serum2/references/
+  patches.md): this patch's spectrum *breathes* — at OscMix 127 shares
+  wander ±4 (39–49 sub), and OscMix 90 mixes in VCO2 for real H3 content
+  (best single take 42.2/28.5/27.3) but beats on a ~15 s+ period, swinging
+  ±10. The Serum version sits statically at 43.7/27.5/28.6. Pick by feel:
+  Diva = living analog texture, Serum = surgical match. OscMix 90 is the
+  documented alternative flavor; banked value stays 127.
