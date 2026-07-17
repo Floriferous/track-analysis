@@ -1,0 +1,65 @@
+# Diva ↔ Bitwig: how the synth maps onto the controllable surface
+
+Sources: the official manual in this folder (`Diva-user-guide.pdf`, v1.4.8 —
+page numbers below cite it) and live OSC enumerations against Diva in Bitwig
+5.3. Companion mechanics: the `bitwig-control` skill (`bw.py pages`, `param`,
+tweak loop).
+
+## The one fact that shapes everything
+
+**Bitwig's remote-control pages for Diva are generated from the parameters
+the current preset's active models publish** — different presets expose
+different page sets. Observed live: a Digital-oscillator patch exposed pages
+`VCO1/VCO2/VCO3/FM/Mod…`; a Dual VCO patch exposed
+`VCO/TuneMod/PulsWdth/Sync/CrossMod/Mix/Feedback/Lowpass…`. Consequence:
+**run `bw.py pages` after every preset load** — never assume yesterday's map.
+
+## Diva's modular architecture (what the page names mean)
+
+Diva is panels-with-swappable-models (manual p23):
+
+| panel | models | manual | typical exposed pages |
+|---|---|---|---|
+| Oscillators | Triple VCO (p25) · Dual VCO (p26) · DCO (p28) · Dual VCO Eco · Digital (p29–30) | p23–31 | `VCO*`, `TuneMod`, `PulsWdth`, `Sync`, `CrossMod`, `Mix` |
+| Center: Feedback / HPF | No-HPF-just-Feedback · 3 HPF models | p31 | `Feedback` |
+| Main filter | Ladder (p33) · Cascade (p33) · Multimode (p34) · Bite (p35) · Uhbie (p36) | p32–36 | `Filter`, `Lowpass` (name follows model) |
+| Envelopes ×2 | ADS · Analogue · Digital (ADSR variants) | p37–38 | `AmpEnv` (env1), `ModEnv` (env2) |
+| LFOs ×2 | | p39 | `Vibrato`, mod-source fields |
+| Effects ×2 | Chorus · Phaser · Plate · Delay · Rotary | p40–42 | `Plate2`, etc. (name = model + slot) |
+| Voice / Tuning / Trimmers | | p43–47 | mostly not exposed |
+
+## Sound-design semantics of the recurring exposed params
+
+- **`Feedback`** (p31): post-filter signal fed back into the mixer — Diva's
+  warmth/thickness/harmonics knob. First reach for fattening a bass.
+- **`Frequency` / `Resonance`** on `Filter`/`Lowpass`: main filter cutoff
+  (display ≈ semitone-ish units, ~30–150) and resonance.
+- **`FreqModDepth` / `FreqMod2Depth`** (+ `…Src` fields): filter envelope /
+  second-source modulation amounts — the "movement" controls.
+- **`FilterFM`**: audio-rate filter FM from the oscillator — grit/growl.
+- **`KeyFollow`**: cutoff tracks pitch; matters when a bassline spans octaves.
+- **`OscMix`**: VCO1↔VCO2 balance (Dual VCO, p26; VCO1 carries the noise
+  generator).
+- **`Tune2`**: oscillator 2 tuning. **3EE preset-pack convention observed:
+  patches sound −12 from written pitch** (Tune2 −12, or global transpose) —
+  verify sounding octave with the hearing loop before trusting MIDI pitch.
+- **`PulseWidth` / `PWModDepth`**, **`Sync2`**, **`FM`** (CrossMod): classic
+  analog waveshaping — pulse width, hard sync, cross-modulation.
+- **`AmpEnv`**: Attack/Decay/Sustain (+`Release On` toggle, Velocity,
+  KeyFollow); **`ModEnv`** = envelope 2, the default filter-mod source.
+- **`Vibrato`**: global pitch LFO amount.
+- Displays mirror the GUI knob values — quote them back to the user in
+  Diva's own units.
+
+## Working notes (live-verified)
+
+- Params write like any Bitwig device (`bw.py param`, verify-retry included);
+  a cold write occasionally needs the prime-with-current retry that bw.py
+  already performs.
+- A parameter exposed on a page whose model is *inactive* silently does
+  nothing to the sound (observed: `Shape1` writes on an unused oscillator
+  path — `[OK]` readback, zero audible/measured change). The measured
+  spectrum, not the readback, proves a knob is live.
+- Tuning fixes are usually better done in the MIDI (octave-transposed clips)
+  than by hunting the patch's transpose — see the octave incident in
+  `bitwig-control/references/verified-behaviors.md`.

@@ -178,6 +178,33 @@ def cmd_insert_file(args):
     print(f"inserted; {key} = {after}")
 
 
+def cmd_pages(args):
+    """Walk every remote-control page of the cursor device; dump the full
+    param inventory as JSON. Page sets can be preset-dependent (Diva publishes
+    params per active model) — enumerate per patch, not once per plugin."""
+    import json
+    c = client()
+    c.send_message("/device/page/1/selected", 1)
+    time.sleep(0.8)
+    pages, seen = [], set()
+    for _ in range(40):
+        st = collect_feedback(1.5)
+        name = st.get("/device/page/selected/name", ("?",))[0]
+        if name in seen:
+            break
+        seen.add(name)
+        params = [{"i": i,
+                   "name": st.get(f"/device/param/{i}/name", ("",))[0],
+                   "display": st.get(f"/device/param/{i}/valueStr", ("",))[0],
+                   "value": st.get(f"/device/param/{i}/value", (None,))[0]}
+                  for i in range(1, 9)
+                  if st.get(f"/device/param/{i}/name", ("",))[0]]
+        pages.append({"page": name, "device": st.get("/device/name", ("?",))[0], "params": params})
+        c.send_message("/device/param/+", 1)
+        time.sleep(0.6)
+    print(json.dumps(pages, indent=1))
+
+
 def cmd_raw(args):
     client().send_message(args.address, [typed(a) for a in args.args] or 1)
     print(f"sent {args.address} {args.args}")
@@ -233,6 +260,7 @@ def main():
     sub.add_parser("redo").set_defaults(fn=simple("/redo"))
 
     sub.add_parser("params").set_defaults(fn=cmd_params)
+    sub.add_parser("pages").set_defaults(fn=cmd_pages)
     p = sub.add_parser("param")
     p.add_argument("index", type=int, choices=range(1, 9))
     p.add_argument("value", type=typed, help="0..1 float (scaled) or raw int")
