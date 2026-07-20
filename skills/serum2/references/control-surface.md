@@ -6,12 +6,16 @@ capture loop) come from `bitwig-control`.
 
 ## Why Serum 2 is not Diva
 
-- **Serum 2 publishes zero static parameters to the host.** `bw.py pages` /
-  `params` on the cursor device return nothing — no pages, no params, and a
-  GUI-touched param does *not* persist into the bank afterwards. This is
-  Xfer's deliberate design (params are dynamic; their forum's answer for
-  automation is per-knob right-click → Automate). The Diva-style
-  enumerate-and-write workflow is impossible.
+- **Serum 2 publishes no usable synthesis parameters to the host.**
+  `bw.py pages` / `params` on the cursor device return nothing — no pages,
+  no params, and a GUI-touched param does *not* persist into the bank
+  afterwards. This is Xfer's deliberate design (params are dynamic; their
+  forum's answer for automation is per-knob right-click → Automate). The
+  Diva-style enumerate-and-write workflow is impossible. Nuance seen in
+  Bitwig's GUI param *list* (2026-07-20): a few static globals exist (Main
+  Vol, Main Tuning, Amp, Porta Time/Curve, Filter 1 On) — an open lead:
+  hand-mapping those onto a remote-control page would give OSC readback for
+  the ones that matter.
 - **No CLAP build exists** (VST3/AU/AAX only; the 2.1.5 installer offers no
   format choice). Verified in the project file: `strings *.bwproject` shows a
   VST3 class ID for Serum 2, and Diva-style CLAP string IDs are absent.
@@ -75,18 +79,24 @@ Extrapolations (OSC B level = 1001001, Env 2 attack = 3001000, …) are
 plausible arithmetic, but each one must be proven by writing a map and
 measuring before it enters this table.
 
-## Map loading semantics (manual p26–27, live-confirmed)
+## Map loading semantics — manual claims vs observed reality
 
-- MIDI Learn assignments live in the *running instance* and save with the
-  DAW session and with presets.
-- `default.SerumMIDIMap` in `Serum 2 Presets/System/MIDI CC Maps/`
-  auto-loads for **new instances**, on **Init Preset**, and on **every
-  preset selection** — the last one only because the Global preference
-  **"Load MIDI Map from Presets" is false** (checked in
-  `~/Library/Preferences/Serum2Prefs.json`; keep it false, it is what makes
-  the roster survive preset changes).
-- A **running** instance does *not* re-read the default file when it changes
-  on disk — use Serum menu → Load MIDI Map, or rely on the next preset load.
+What the manual says (p26–27): MIDI Learn assignments save with the DAW
+session and with presets; `default.SerumMIDIMap` in
+`Serum 2 Presets/System/MIDI CC Maps/` auto-loads for new instances, on
+Init Preset, and on every preset selection when the Global preference
+"Load MIDI Map from Presets" is false (it is, in
+`~/Library/Preferences/Serum2Prefs.json` — keep it false).
+
+What measurement showed (2026-07-20): **binding *state* and binding
+*application* are different things.** File-loaded bindings (menu → Load
+MIDI Map, and whatever auto-load does) appear in right-click badges and in
+the save-back readback, but mapped CCs did not audibly drive the engine;
+*live-learned* bindings drive it immediately. Unresolved whether this is a
+Serum quirk or an interaction with the session's restored state — until a
+controlled experiment settles it, live-learn is the only trusted way to
+arm the roster, and the file is documentation/seed. A running instance
+never re-reads an edited file on its own either way.
 
 ## Bitwig-side facts
 

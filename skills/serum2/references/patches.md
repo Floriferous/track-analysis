@@ -33,3 +33,8 @@ version in `skills/diva/references/patches.md` (this one measured closer).
   Diva for analog movement.
 - Still open: level balance vs kick in the full mix (patch RMS −33 dBFS is
   quiet — raise track volume, not drive).
+- 2026-07-20 replay on a rebuilt instance (fresh Init + re-learned roster,
+  IAC transport): first take 43.1/32.0/24.1 but RMS −21.5 (11 dB hotter)
+  and f0 −23c vs +12c — the rebuilt Init state differs from the banked one
+  in level/tuning. Re-converge briefly before precision work; the CC state
+  above remains the right starting point.

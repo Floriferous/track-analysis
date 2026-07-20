@@ -127,6 +127,16 @@ readback is a guess, not a behavior.
   stole the focus mid-session and a write toggled it off). `bw.py lastparam
   --expect <name>` guards against writing the wrong control.
 
+- **vkb_midi CC injection can die while notes keep working** (2026-07-20):
+  `/vkb_midi/1/cc/*` stopped reaching a record-armed track's plugin
+  (proven by the receiver's own MIDI-Learn hearing nothing) while
+  `/vkb_midi/1/note/*` still sounded (VU 58) — and it survived a
+  controller power-cycle, a fresh plugin instance, and a full Bitwig
+  restart. Root cause unfound. Workaround, now the standing CC transport:
+  a second IAC bus ("claude-cc") into a Generic MIDI Keyboard controller —
+  CCs verified arriving. Note the OSC controller *requires* a MIDI-in port
+  assignment to stay enabled (it holds IAC Bus 1); never reassign its port.
+
 ## Incidents (the evidence behind SKILL.md's rules)
 
 - Real project clips were overwritten because empty clip *names* were read as
