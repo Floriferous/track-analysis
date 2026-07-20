@@ -55,6 +55,18 @@ with paramIDs and measured fingerprints: `references/control-surface.md`.
 
 - A silent null result usually means *unwired*, not *broken* — Init macros
   and dead modules were tonight's two hour-eaters.
+- **Loading any preset wipes the instance's CC bindings** — reload the map
+  (menu → Load MIDI Map) and re-verify before iterating. Verify with the
+  save-back readback (Save MIDI Map → `serumfile.py map`), not by sweeping.
+- **Presets carry `mpeEnabled`** — loading an MPE-enabled preset flips the
+  whole instance into MPE mode (pitch bend becomes per-note, CC10 becomes
+  expression; manual p314). Check the payload when MIDI behaves strangely.
+- **CC transport can silently regress** (unresolved incident 2026-07-20:
+  vkb_midi notes reached Serum, CCs did not — across map reloads, MPE off,
+  fresh instance). Before any CC iteration session, run the 10-second
+  arrival probe: user right-clicks a knob → MIDI Learn, you send the CC —
+  learn completing = transport proven; learn still waiting = stop and fix
+  transport first, nothing downstream is testable.
 - CC has no feedback anywhere (no OSC echo, no lastparam witness): a CC
   experiment with no measurement attached is not an experiment.
 - `lastparam` focus follows every GUI click including power buttons —

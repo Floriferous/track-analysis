@@ -19,12 +19,15 @@ Payloads seen:
                 sparse name-keyed "plainParams" (only non-default values).
 
 Usage:
-  serumfile.py info <file>      manifest + hash check
-  serumfile.py map <file>       list CC bindings of a MIDI map
-  serumfile.py dump <file>      full CBOR payload as JSON on stdout
+  serumfile.py info <file>                        manifest + hash check
+  serumfile.py map <file>                         list CC bindings of a MIDI map
+  serumfile.py dump <file>                        full CBOR payload as JSON on stdout
+  serumfile.py addcc <file> <cc> <paramID> <out>  add/replace one CC binding
+  serumfile.py setparam <file> <Module> <kParam> <float> <out>
+                                                  set one preset param value
 
-Writing files back is untested territory: re-encode CBOR -> zstd -> update
-uncompressed_size and manifest hash. Verify in Serum before trusting.
+Writing: re-encode CBOR -> zstd -> u32 sizes + md5(frame) into the manifest.
+Round-trip is self-checked on every write (decode(encode(x)) == x).
 """
 
 import hashlib
@@ -53,11 +56,31 @@ def read_container(path):
     return manifest, cbor2.loads(payload), hash_ok
 
 
+def write_container(path, manifest, payload_obj):
+    """Assemble a container; manifest['hash'] is (re)computed here."""
+    cbor = cbor2.dumps(payload_obj)
+    frame = zstandard.ZstdCompressor().compress(cbor)
+    manifest = dict(manifest)
+    manifest["hash"] = hashlib.md5(frame).hexdigest()
+    mjson = json.dumps(manifest, separators=(",", ":")).encode()  # Serum writes compact JSON
+    out = (MAGIC + struct.pack("<II", len(mjson), 0) + mjson
+           + struct.pack("<II", len(cbor), 2) + frame)
+    open(path, "wb").write(out)
+    m2, p2, ok = read_container(path)          # self-check every write
+    if not ok or p2 != payload_obj:
+        raise RuntimeError(f"{path}: round-trip self-check FAILED")
+    return len(out)
+
+
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] not in ("info", "map", "dump"):
+    argc = len(sys.argv)
+    cmd = sys.argv[1] if argc > 1 else ""
+    if not ((cmd in ("info", "map", "dump") and argc == 3)
+            or (cmd == "addcc" and argc == 6)
+            or (cmd == "setparam" and argc == 7)):
         print(__doc__)
         sys.exit(2)
-    cmd, path = sys.argv[1], sys.argv[2]
+    path = sys.argv[2]
     manifest, payload, hash_ok = read_container(path)
 
     if cmd == "info":
@@ -70,6 +93,27 @@ def main():
             print(f"CC{e['ccNum']:>3} -> paramIDs {e['paramIDs']}")
     elif cmd == "dump":
         print(json.dumps(payload, indent=1, default=repr))
+    elif cmd == "addcc":
+        cc, pid, out = int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
+        entries = [e for e in payload["midiMap"] if e.get("ccNum") != cc]
+        entries.append({"ccNum": cc, "paramIDs": [pid]})
+        payload["midiMap"] = sorted(entries, key=lambda e: e["ccNum"])
+        n = write_container(out, manifest, payload)
+        print(f"wrote {out} ({n} bytes): CC{cc} -> [{pid}], "
+              f"{len(entries)} bindings, self-check OK")
+    elif cmd == "setparam":
+        module, kparam, value, out = (sys.argv[3], sys.argv[4],
+                                      float(sys.argv[5]), sys.argv[6])
+        mod = payload.get(module)
+        if not isinstance(mod, dict):
+            raise SystemExit(f"no module '{module}' in {path}")
+        if not isinstance(mod.get("plainParams"), dict):
+            mod["plainParams"] = {}      # sparse: 'default' means untouched
+        old = mod["plainParams"].get(kparam, "(default)")
+        mod["plainParams"][kparam] = value
+        n = write_container(out, manifest, payload)
+        print(f"wrote {out} ({n} bytes): {module}.{kparam} {old} -> {value}, "
+              f"self-check OK")
 
 
 if __name__ == "__main__":

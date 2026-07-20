@@ -53,12 +53,29 @@ The string `"default"` stands in for an untouched module. Note the two
 naming systems: presets use `kParam*` *names*, MIDI maps use numeric
 *paramIDs*; no file observed so far carries the name↔ID table.
 
-## Writing files (the untested frontier)
+## Writing files — PROVEN (2026-07-20)
 
-Everything needed is known: encode CBOR → zstd-compress → fill in
-uncompressed size + md5 → assemble. Not yet attempted; when first tried,
-verify by loading in Serum (Load MIDI Map for maps; preset browser for
-presets) and measuring, before trusting the encoder. Obvious applications:
-extending the CC roster without MIDI-Learn clicking (needs the paramID from
-the scheme + one measured confirmation), and eventually authoring patches
-directly (`kParam*` values are plain floats).
+`serumfile.py addcc` / `setparam` (plus `write_container()` for anything
+else) encode CBOR → zstd → sizes + md5. Every write self-checks by decoding
+itself. Live-verified both ways:
+
+- **MIDI map**: a 23-binding map written by the encoder was loaded by Serum
+  (menu → Load MIDI Map, no error) and Serum's own *Save MIDI Map* dump of
+  the result was **payload-identical key-for-key** to the written file —
+  the strongest possible readback.
+- **Preset**: two copies of a user preset with `Global0.kParamMasterVolume`
+  set to 0.38 / 0.90 (original 0.19) were indexed by Serum's browser,
+  loaded errorlessly, and measured monotonically louder (RMS −21.6 →
+  −20.6 → −17.6; the value→dB curve is Serum's own taper, not linear).
+
+Byte-fidelity notes (from diffing against Serum-written files): the JSON
+manifest must be compact (`","`/`":"` separators — byte-identical then);
+Serum writes CBOR map keys in plain alphabetical order (round-tripping
+preserves it; RFC-canonical sorting does NOT match) and uses
+smallest-width floats where cbor2 emits float64 — Serum's parser accepts
+both widths (its own factory files mix them).
+
+**The save-back readback**: Serum has no live binding query, but *Save MIDI
+Map* → decode is a full readback of its current CC state. Use it whenever
+"is the map actually loaded?" matters — GUI right-click menus show per-knob
+CC badges too, but the file is measurable.
