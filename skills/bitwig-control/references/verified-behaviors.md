@@ -170,3 +170,19 @@ full surface), not yet exercised against a live project:
 Banks beyond 8 (`/track/bank/+`), value resolutions above 128,
 `/browser/preset` commit flow end-to-end, automation writing
 (`/autowrite`, `/automationWriteMode`).
+
+- **Track-level continuous value writes observed failing** (2026-07-20, same
+  night as the vkb CC death): `/track/{n}/volume` and
+  `/track/{n}/send/{m}/volume` writes were sent (correct per TrackModule
+  source, `activated` toggles on the same tree DID land) but values read
+  back unchanged and no audible/measured effect — while device param
+  writes, mutes, launches, and scene names all worked. Workaround used:
+  gain moves via a device in the chain (e.g. Compressor+ Make-up).
+  Re-verify volume/send writes at next session start; if still dead this is
+  a DrivenByMoss/Bitwig defect worth reporting upstream.
+- **A cursor nested inside a Drum Machine pad cannot climb out over OSC**:
+  `/device/{+,-}` walks siblings inside the pad chain only; re-selecting
+  the track does not reset depth. Getting the cursor onto the container or
+  another pad's device needs a GUI click. Inside the pad, the Sampler's
+  pages enumerate and write fine (Overview/Perform/Amp EG — decay/sustain
+  writes verified with display readback).
