@@ -186,3 +186,15 @@ Banks beyond 8 (`/track/bank/+`), value resolutions above 128,
   another pad's device needs a GUI click. Inside the pad, the Sampler's
   pages enumerate and write fine (Overview/Perform/Amp EG — decay/sustain
   writes verified with display readback).
+
+- **Scene launches stop the print-track recording — even via EMPTY slots**
+  (2026-07-20, two dead bounces): a scene fires every track's slot button in
+  its row, and an empty slot button is a *stop* button, so any
+  `/scene/{n}/launch` during a long capture kills the recording clip on the
+  print track. For arrangement-length bounces, drive sections with
+  **per-track clip launches + `/track/{n}/stop`** and never touch the print
+  track's rows (verified working: 76-bar bounce). Also: launcher→arranger
+  recording did not happen via `/record` + `/play` + scene launches (three
+  variants, arranger stayed empty; per-track arm on/off made no difference)
+  — the correct Bitwig gesture over OSC is unresolved; audio bounce via the
+  print track is the proven way to render a performance.
