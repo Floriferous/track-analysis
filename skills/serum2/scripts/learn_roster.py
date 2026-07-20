@@ -20,12 +20,16 @@ instance then loads the roster automatically (manual p27).
 import os
 import time
 
+import mido
 from pythonosc.udp_client import SimpleUDPClient
 
 HOST = os.environ.get("BITWIG_OSC_HOST", "127.0.0.1")
 PORT = int(os.environ.get("BITWIG_OSC_SEND_PORT", "8000"))
 TRACK = int(os.environ.get("BITWIG_SERUM_TRACK", "4"))
-CHANNEL = 1
+# CCs ride the IAC bus (Generic controller in Bitwig), NOT vkb_midi:
+# DrivenByMoss's CC injection was observed to silently die (2026-07-20)
+# while the IAC path is controller-independent.
+MIDI_PORT = os.environ.get("CLAUDE_CC_PORT", "IAC Driver Bus 2")
 
 # The standard roster, in MIDI "undefined" CC ranges (22-31, 85-89) so it
 # never collides with mod wheel/volume/pan/sustain. CC 14-21 stay reserved
@@ -54,7 +58,13 @@ def main() -> None:
     client = SimpleUDPClient(HOST, PORT)
     client.send_message(f"/track/{TRACK}/recarm", 1)
     time.sleep(0.3)
-    print(f"OSC -> {HOST}:{PORT}, track {TRACK} armed.\n")
+    midi = mido.open_output(MIDI_PORT)
+    print(f"OSC -> {HOST}:{PORT}, track {TRACK} armed; CCs -> {MIDI_PORT}.\n")
+
+    def send(cc, value):
+        midi.send(mido.Message("control_change", channel=0, control=cc,
+                               value=value))
+        time.sleep(0.15)
 
     for cc, knob in ROSTER:
         ans = input(f"[CC{cc}] Right-click {knob} -> MIDI Learn, then Enter "
@@ -63,12 +73,11 @@ def main() -> None:
             break
         if ans == "s":
             continue
-        client.send_message(f"/vkb_midi/{CHANNEL}/cc/{cc}", 64)
-        time.sleep(0.15)
-        client.send_message(f"/vkb_midi/{CHANNEL}/cc/{cc}", 72)
-        time.sleep(0.15)
-        client.send_message(f"/vkb_midi/{CHANNEL}/cc/{cc}", 64)
+        send(cc, 64)
+        send(cc, 72)
+        send(cc, 64)
         print(f"    sent CC{cc} — the {knob} knob should have jumped to ~50%.")
+    midi.close()
 
     print("\nDone. Now in Serum's main menu: Save MIDI Map ->")
     print("  Serum 2 Presets/System/MIDI CC Maps/default.SerumMIDIMap  (overwrite)")

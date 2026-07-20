@@ -15,10 +15,16 @@ capture loop) come from `bitwig-control`.
 - **No CLAP build exists** (VST3/AU/AAX only; the 2.1.5 installer offers no
   format choice). Verified in the project file: `strings *.bwproject` shows a
   VST3 class ID for Serum 2, and Diva-style CLAP string IDs are absent.
-- Consequence: **the control backbone is MIDI CC**, delivered over
-  `/vkb_midi/1/cc/{cc} {0-127}` to the record-armed track. CC has **no
-  feedback of any kind** — no OSC readback, no `lastparam` witness. The
-  capture loop measurement is the *only* verification that a value landed.
+- Consequence: **the control backbone is MIDI CC**, delivered over a
+  dedicated IAC bus (`scripts/cc.py`; macOS Audio MIDI Setup port
+  "claude-cc"/Bus 2 → Bitwig Generic controller → armed track). vkb_midi
+  still carries *notes*, but its CC injection silently died 2026-07-20 and
+  is not trusted for CCs. CC has **no feedback of any kind** — no OSC
+  readback, no `lastparam` witness. The capture loop measurement is the
+  *only* verification that a value landed.
+- Setup note: the DrivenByMoss OSC controller *requires* a MIDI-in port
+  assignment to stay enabled (it holds IAC Bus 1) — never steal its port;
+  the CC bus is a second IAC port for exactly this reason.
 
 ## Control layers
 

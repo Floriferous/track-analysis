@@ -16,8 +16,11 @@ skill is the Serum-specific knowledge.
 
 1. Arm exactly the Serum track (`bw.py raw /track/{n}/recarm 1`).
 2. Something audible to measure: launch a held-note clip, capture a baseline.
-3. Drive knobs: `bw.py raw /vkb_midi/1/cc/{cc} {0-127}` — roster below.
-4. Verify each move with a capture; quote band shares/RMS, not hope.
+3. Drive knobs over the **IAC bus**: `scripts/cc.py {cc} {0-127} [...]` —
+   roster below. (Not vkb_midi: its CC injection died silently 2026-07-20
+   while notes kept working; notes still go over vkb_midi.)
+4. Verify each move with a capture; quote band shares/RMS, not hope. On a
+   fresh setup, run the 10-second arrival probe first (see Traps).
 
 ## The roster (bound + verified 2026-07-17)
 
@@ -61,12 +64,23 @@ with paramIDs and measured fingerprints: `references/control-surface.md`.
 - **Presets carry `mpeEnabled`** — loading an MPE-enabled preset flips the
   whole instance into MPE mode (pitch bend becomes per-note, CC10 becomes
   expression; manual p314). Check the payload when MIDI behaves strangely.
-- **CC transport can silently regress** (unresolved incident 2026-07-20:
-  vkb_midi notes reached Serum, CCs did not — across map reloads, MPE off,
-  fresh instance). Before any CC iteration session, run the 10-second
-  arrival probe: user right-clicks a knob → MIDI Learn, you send the CC —
-  learn completing = transport proven; learn still waiting = stop and fix
-  transport first, nothing downstream is testable.
+- **CC transport can silently regress** (incident 2026-07-20: vkb_midi
+  notes reached Serum, CCs did not — survived map reloads, MPE off, fresh
+  instance, full Bitwig restart; root cause in DrivenByMoss/Bitwig never
+  found). Resolution: **CCs ride a dedicated IAC bus** ("claude-cc" / IAC
+  Driver Bus 2 → a Generic controller in Bitwig → armed track), fully
+  bypassing the OSC extension — `scripts/cc.py`. The 10-second arrival
+  probe remains the health check for any fresh setup: user right-clicks a
+  knob → MIDI Learn, you send a CC — learn completing proves arrival;
+  learn still waiting means fix transport first, nothing downstream is
+  testable.
+- **File-loaded map bindings may not drive the engine**: after menu-loading
+  a map, its bindings appear in Serum's state (save-back and right-click
+  badges confirm) yet mapped CCs were observed doing nothing, while
+  *live-learned* bindings work immediately. Until resolved: after any
+  session/preset reset, re-learn the roster live (`scripts/learn_roster.py`,
+  ~1 min) and treat the default-map file as backup/documentation, then
+  verify one audible knob by capture before iterating.
 - CC has no feedback anywhere (no OSC echo, no lastparam witness): a CC
   experiment with no measurement attached is not an experiment.
 - `lastparam` focus follows every GUI click including power buttons —
