@@ -83,22 +83,32 @@ def is_continuous(address):
     return bool(_CONTINUOUS.match(address))
 
 
-def send(address, value=None, prime=True):
+def send(address, value=None, prime=True, current=None):
     """The one write path. Primes continuous addresses; sends everything
     else exactly once.
 
-    Priming costs one extra packet and ~0.25s, and is the difference
-    between a write landing and vanishing without a trace. Note DBM only
-    accepts ONE argument per message (OSCParser passes a multi-arg Object[]
-    straight into toInteger, which throws) — so value is a scalar."""
+    `current` is the address's present value, and passing it MATTERS: a
+    device param rejects a cold write takeover-style and only accepts one
+    after it has seen its own current value (four packets of the target in
+    a row left it unmoved; one prime with the current value landed first
+    try). Track-level addresses are laxer — any rapid pair warms them — so
+    priming with the target is a usable fallback, but it is only that.
+
+    Note DBM accepts ONE argument per message (OSCParser hands a multi-arg
+    Object[] to toInteger, which throws), so value is a scalar."""
     c = client()
     if value is None:
         value = 1
     if prime and is_continuous(address):
-        c.send_message(address, value)
+        c.send_message(address, value if current is None else current)
         time.sleep(0.25)
     c.send_message(address, value)
     return value
+
+
+def read_value(address, seconds=1.2):
+    """Current value at `address`, or None. Used to prime correctly."""
+    return collect_feedback(seconds).get(address, (None,))[0]
 
 
 def collect_feedback(seconds, send_refresh=True):
@@ -330,9 +340,13 @@ def cmd_raw(args):
         # the message is dropped with only a console line. Refuse loudly.
         raise SystemExit(f"{args.address}: DrivenByMoss accepts one argument per "
                          f"message; got {len(vals)}")
-    send(args.address, vals[0] if vals else None)
-    primed = " (primed)" if is_continuous(args.address) else ""
-    print(f"sent {args.address} {args.args}{primed}")
+    # Read the current value first on continuous addresses: priming with the
+    # target is not enough for a cold device param (see send()). Costs a
+    # feedback round-trip, buys a write that actually lands.
+    cur = read_value(args.address) if is_continuous(args.address) else None
+    send(args.address, vals[0] if vals else None, current=cur)
+    note = f" (primed from {cur})" if is_continuous(args.address) else ""
+    print(f"sent {args.address} {args.args}{note}")
 
 
 def simple(address, value=None):

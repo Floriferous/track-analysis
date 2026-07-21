@@ -204,6 +204,28 @@ Banks beyond 8 (`/track/bank/+`), value resolutions above 128,
   transport (`/stop` rewinds on the second send), and MIDI events
   (`/vkb_midi/*` — a primed note-on is two notes).
 
+  **Device params are stricter than track params** (2026-07-21, found while
+  automating the loop): warming is not enough for `/device/param/{n}/value`
+  — it rejects takeover-style and accepts a write only after seeing its own
+  **current** value. Four packets of the target in a row left it reading
+  64; one prime with the current value landed first try. Track volume/pan
+  are laxer (any rapid pair warms them, even target-twice), which is why
+  the two look like one behaviour until you automate them. `bw.py` now
+  reads the current value before priming a continuous address, so
+  `raw /device/param/{n}/value X` works — but anything hand-rolling OSC
+  must prime with the CURRENT value, not the target.
+
+  **Restoring a snapshot restores the raw grid position, not the value.**
+  Compressor+ Make-up read `0.0 dB` at raw 64; writing 64 back lands on
+  `+0.2 dB` (raw 63 = −0.2). At resolution 128 exact 0.0 is simply
+  unreachable over OSC — a knob "restored" by a script can end up a step
+  off, and only a GUI type-in fixes it exactly.
+
+  **`/device/param/{n}/value/reset` is not an undo.** It goes to the
+  parameter's factory default, which for Compressor+ Make-up is
+  **−23.6 dB**, not the 0.0 dB it happened to be sitting at. Never use
+  reset to unwind an edit.
+
   Related, from the same source read: **DrivenByMoss accepts exactly ONE
   argument per message.** `OSCParser` passes a multi-arg `Object[]` straight
   into `toInteger`, which throws — so multi-arg sends fail silently

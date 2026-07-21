@@ -156,6 +156,19 @@ capture can be the drift's lucky phase (measured: identical knobs scored 1.6
 then 20.7 against one target). State the target numbers before the first
 iteration — a loop without a numeric target is just wiggling knobs.
 
+**Automate the loop with `converge.py`** once the target is a single number
+against a single knob: `converge.py --param 3 --metric bands.bass --target 88`
+bisects, requires two consecutive in-tolerance captures, and restores the
+starting value on any failure. It runs `hear.py` in-process (~6.7 s/iteration
+vs ~8.1 s shelling out).
+
+Its **validity gate** is the part that matters: before bisecting it measures
+the capture-to-capture noise floor, moves the knob to both extremes, and
+refuses to converge if the metric doesn't move by more than that noise —
+because a loop tuning a metric the knob does not control will happily report
+success. It also prints `WEAK:` when the span is under 4× the noise. Trust a
+converged number less than the gate line above it.
+
 **A part that sounds small is often mono, not dull.** `--width` gives the
 side share per band against a reference stem's; a dead-centre element reads
 ~0% where a wide techno hat reads ~25%. Reach for it before EQ when
