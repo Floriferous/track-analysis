@@ -32,6 +32,10 @@ from pathlib import Path
 
 import numpy as np
 
+# Deliberate cross-skill dependency: the whole point is to emit targets in the
+# units the DAW side will be measured in, and hear.py IS that measurement. It
+# must be the same code, not a reimplementation, or the two drift apart and the
+# comparison silently stops meaning anything.
 HEAR = Path(__file__).resolve().parents[2] / "bitwig-control" / "scripts" / "hear.py"
 
 
@@ -68,6 +72,13 @@ def main():
     ap.add_argument("--dossier", default=None, help="dossier.json, for whole-track loudness/key")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
+
+    if not HEAR.exists():
+        raise SystemExit(
+            f"cannot find hear.py at {HEAR}\n"
+            "targets.py needs the bitwig-control skill sitting beside this one, because "
+            "it emits targets by running the same measurement the DAW side uses. Copy "
+            "bitwig-control alongside track-analysis, or run this from the repo.")
 
     ddir = Path(args.deep)
     deep = json.loads((ddir / "deep.json").read_text())
