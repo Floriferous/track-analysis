@@ -2,6 +2,10 @@
 a work-in-progress and a reference (or two references). Part of the track-analysis skill;
 field meanings: ../references/dossier-format.md
 
+For recreating a reference in a DAW use `targets.py` instead — this file
+compares deep.json to deep.json in THIS skill's units, which are not the
+units hear.py/capture.py measure the DAW in (see targets.py's header).
+
 Usage: python compare.py a/deep.json b/deep.json
 """
 import json
