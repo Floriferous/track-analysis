@@ -42,6 +42,9 @@ def main():
     ap.add_argument("--pump-bpm", type=float, default=None,
                     help="fold the level envelope onto one beat at this BPM: "
                          "reports duck depth %% and minimum position (sidechain tuning)")
+    ap.add_argument("--width", action="store_true",
+                    help="per-band stereo side share (%%): 0 = mono, ~25 = a wide "
+                         "techno hat. Needs a stereo file.")
     ap.add_argument("--pump-band", default=None, metavar="LO,HI",
                     help="band-limit the pump envelope (Hz), e.g. 120,300 to watch "
                          "bass harmonics while a kick occupies the sub")
@@ -76,9 +79,13 @@ def main():
     # 16384 @ 44.1k -> 2.7 Hz bins: enough to tell E1 from F1 down in the sub
     n_fft = 16384
     hop = n_fft // 2
-    frames = [mono[i:i + n_fft] * np.hanning(n_fft)
-              for i in range(0, len(mono) - n_fft, hop)]
-    S = np.median(np.abs(np.fft.rfft(np.array(frames), axis=1)), axis=0)
+
+    def spectrum(sig):
+        frames = [sig[i:i + n_fft] * np.hanning(n_fft)
+                  for i in range(0, len(sig) - n_fft, hop)]
+        return np.median(np.abs(np.fft.rfft(np.array(frames), axis=1)), axis=0)
+
+    S = spectrum(mono)
     freqs = np.fft.rfftfreq(n_fft, 1 / sr)
 
     total = (S ** 2).sum() + 1e-12
@@ -91,6 +98,33 @@ def main():
         if not args.json:
             bar = "#" * int(round(share * 40))
             print(f"  {name:<20} {100 * share:5.1f}%  {bar}")
+
+    # Stereo width. Mono sources read ~0; a dead-centre element is the usual
+    # reason a part sounds small next to a reference that measures ~25% side.
+    if args.width:
+        if y.shape[1] < 2:
+            if not args.json:
+                print("stereo width: (mono file)")
+        else:
+            # mean power, NOT the median spectrum used for timbre above: width is
+            # about how energy is distributed, and a median across frames
+            # underweights transients — which is most of what a hat *is*.
+            def power(sig):
+                frames = [sig[i:i + n_fft] * np.hanning(n_fft)
+                          for i in range(0, len(sig) - n_fft, hop)]
+                return (np.abs(np.fft.rfft(np.array(frames), axis=1)) ** 2).mean(axis=0)
+
+            Sm, Ss = power(y.mean(axis=1)), power((y[:, 0] - y[:, 1]) / 2)
+            result["width_side_pct"] = {}
+            if not args.json:
+                print("stereo width (side share):")
+            for name, (lo, hi) in BANDS.items():
+                sel = (freqs >= lo) & (freqs < hi)
+                me, se = Sm[sel].sum(), Ss[sel].sum()
+                pct = 100 * float(se / (me + se + 1e-20))
+                result["width_side_pct"][name.split(" ")[0]] = round(pct, 1)
+                if not args.json:
+                    print(f"  {name:<20} {pct:5.1f}%  {'#' * int(round(pct * 0.4))}")
 
     # spectral peaks -> fundamental + harmonic series
     import scipy.signal
