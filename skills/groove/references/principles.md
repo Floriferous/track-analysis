@@ -1,88 +1,120 @@
 # Groove principles — distilled for programming, not reading
 
-Distilled 2026-07-21 from the sources in `sources.md`, ordered by impact
-(Roger Linn's ranking, confirmed by the Danielsen EDM interviews). These are
-the rules the next drum pass gets built from; promote what survives
-listening into a skill, delete what doesn't.
+v2, 2026-07-21: rebuilt after the deep-research pass (22 sources, 24 claims
+surviving 3-vote adversarial verification — see `sources.md`). Ordered by
+verified impact. Promote what survives listening into a skill; delete what
+doesn't.
 
-## 0. Beat design beats everything
+## The headline (peer-reviewed, 3-0): groove without moving notes
 
-"All the swing, dynamics and other tricks won't do you any good unless you
-come up with a good beat" (Linn). A robotic loop is usually a *design*
-problem first: every element playing every bar, no call-and-response, no
-phrase shape. Sparse syncopated elements that appear every 2–4 bars (a
-conga pair, a tom answer, one clap at the phrase end) do more than any
-humanizer.
+In grid-quantized EDM, groove does NOT require onset microtiming. Sonic
+features create an **"indirect microtiming"** effect — the perceived timing
+of an on-grid hit shifts with its attack shape, duration, envelope, timbre,
+and relative intensity (P-center research; Danielsen's five microrhythmic
+parameters: *timing, duration, shape, timbre, relative intensity*).
+Producers craft groove by shaping envelopes — a hat's attack rise, the
+sidechain "breathing" — not by nudging events. **Sidechain attack/release
+literally changes perceived timing** (Brøvig-Hanssen, MTO 2020): the pump
+shape is a groove parameter tunable without touching MIDI.
 
-## 1. Swing, not randomness
+Implication for us: when a pattern feels robotic, the next lever is usually
+a *sound* lever (sample choice, decay, transient, pump shape, level), not a
+timing lever.
 
-- Swing = delaying the even-numbered 16ths only. 50% straight · 54% barely
-  loose (doesn't read as swing) · 56–58% clearly groovy · 66% triplet.
-  Genre homes: melodic techno ~10% Maschine-style (≈54–55%), nu-disco/indie
-  50–60%, psy mostly straight (the rush comes from velocity cycling).
-- **Random microtiming is measurably worse than the grid** (Frühauf):
-  never `humanize-randomize` timing. EDM is tight; deviations are
-  *deliberate and per-element*, milliseconds scale:
-  - nudge a repeated colour element (rim/shaker) slightly off the kick's
-    transient to separate them;
-  - push/pull ONE element consistently (upper-register perc pushes, low
-    stays anchored — the balanço register rule);
-  - or shift a whole section a few ms (track-delay move) for mood.
+## Timing: what's measured, what backfires
 
-## 2. Velocity architecture (the "breathing")
+- Perception (Senn 2016, swing/funk stimuli): groove peaks around **60%
+  reduction of natural microtiming** — quantized and naturally-loose both
+  rate high, *exaggerated* deviations reliably rate worse. Never randomize;
+  if borrowing a groove template, apply it at reduced depth (~40%).
+- Swing (Linn, primary): useful range 50–~70%, **tempo-dependent** — a
+  setting that grooves at 90 BPM fails at 125. 54% = loose-not-swung;
+  58/62% = grooves a player couldn't perform. (Seeb use 22–40% Ableton
+  swing — pop-EDM data point, 2-1 vote, not a genre norm.)
+- Deliberate per-element nudges survive verification: rim/perc on upbeats
+  pushed slightly EARLY specifically to clear the kick transient.
+- Hardware "magic" is quantifiable and importable: MPC60/3000 = 96 PPQN
+  coarseness, 808 clock jitter ±0.7%/measure; Grooves From Mars measured
+  478 templates off 27 real machines — an option if we ever want machine
+  feel without inventing it. Our own dossier extraction stays preferred
+  (it measures the actual reference).
 
-Structured, cyclic, never flat and never random:
-- 16th-note motion layers cycle a fixed ladder — psy closed hats
-  **67/48/99/48** (53/38/78/38% of 127), accent landing OFF the kick;
-  melodic-techno maracas similar with softer spread.
-- Keep continuous layers inside a narrow band (±5–10 MIDI) and use accents
-  to "create and dispel momentum" — crescendo into a downbeat, duck after.
-- Ghost hits (kick or snare at ~35–45 velocity) in the gaps: felt, not heard.
-- Sidechain is part of the dynamic groove: low ratio (~1.2:1) = drive
-  without seasick pumping; deep ratios only for the pump-as-feature drops.
+## The kick-bass engine (the richest verified area)
 
-## 3. Sound choice IS microrhythm (the EDM-specific truth)
+- **Tune the kick to the track** — Bieger calls it the single most
+  important mixdown step. A kick pitched a few semitones down also reads
+  heavier/more laid-back.
+- **One voice, short sample**: kick sampler limited to 1 voice so tails
+  never overlap; keep the kick short and snappy to leave the sub's room
+  (psy rule of thumb: kick under ~130 ms at 145 BPM — scale ≈ under
+  ~145 ms at our 130).
+- **First 16th of each beat belongs to the kick**: rolling basslines leave
+  it empty (our offbeat roll obeys this).
+- **Spectral separation**: sub layer lowpassed ~80 Hz (12 dB/oct); kick gets
+  a narrow bell cut (−1 to −4.5 dB) at the bass's root frequency, plus
+  1–2 dB cuts at its key harmonics (psy practice). Kick sits **2–3 dB
+  louder than the bass** (psy practice, unverified-tier but consistent).
+- **Phase alignment** kick↔bass is taught as essential in psy schools
+  (Zenon course); bass *tails* come from filter cutoff sitting above the
+  fundamental so the low tone rings after the envelope closes.
+- **Two sidechain schools**: psy practitioners preach gentle (2:1,
+  threshold ≈ −20 dB, 3–6 dB GR — "space, not a substitute for sound
+  design"); our band-limited reference measurement shows ~99% duck in
+  120–300 Hz. Not necessarily contradictory (deep duck in a narrow band vs
+  gentle broadband GR) — treat pump depth/shape as an aesthetic knob and
+  judge by ear per track. Remember: the pump SHAPE is perceived timing.
 
-Producers shape groove by shaping sounds, not sliding notes:
-- **Attack shape**: sharp attack reads as pushed/"on", soft attack reads
-  laid-back — choose/shape per role before touching timing.
-- **Duration**: vary hat note lengths with (or against) the velocity
-  pattern; louder=longer mirrors a real player. Choked/gated tails groove.
-- **Fake round-robin**: 3–5 copies of one hat/perc sample pitched ±15–30
-  cents, alternated per step — kills the machine-gun effect at the source.
-- **Tune the kit**: kick pitched to the track key; perc tuned to chord
-  tones (the Attack melodic-techno kit tunes everything to E).
-- A kick a few semitones lower = heavier/laid-back mood without moving it.
+## Dynamics and level (the "breathing")
 
-## 4. Space is a groove element
+- Velocity architecture: deep ghost/accent contrast (reference measured
+  0.15 vs 0.94), cyclic ladders on 16th layers, accents that create and
+  dispel momentum. (Beyond-accent phrase-level architecture went
+  unverified — measure it ourselves, see agenda.)
+- **Level balance is groove-critical: 2 dB in the wrong direction can
+  "stagger the flow"** (Martinsen, interview study). Iterate element
+  levels by measurement against the reference mix — small moves.
 
-Dry-and-loud everywhere = robotic even with perfect swing. The recipes all
-lean on: clap/snare drowned in a big reverb but filtered low, perc accents
-with plate tails, delay throws at phrase ends, one element panned off-center
-(psy hats ~20%), auto-pan on the 16th motion layer. The silence between
-drop hits is part of the pattern.
+## Sound design of hats/perc
 
-## 5. Genre placement cheat-sheet
+Two-layer hats (one anchoring, one *doubling* layer with reduced offbeat
+velocity, shortened decay, HPF ~1.3 kHz, subtle modulation); fake
+round-robin via 3–5 pitch-varied copies (±15–30 cents); duration variation
+mirroring velocity; tune perc to the key (whole 808 kit tuned to E in the
+Attack melodic-techno recipe).
 
-- **Melodic techno (120–124)**: 4-floor tuned kick (short!); offbeat hat
-  layer + a second dynamic hat; 16th maracas/shaker as motion; clap only at
-  2–4 bar phrase ends (reverbed); syncopated tuned conga/tom every 2 bars;
-  rim on upbeats nudged; ~10% swing.
-- **Psytrance (138–145, ours 130)**: 4-floor kick; closed hats every 16th
-  with the 53/38/78/38 cycle; open hats between kicks (velocity-alternating);
-  claps with kicks 2+4; bass owns the 8th offbeats; straight grid, groove
-  entirely from velocity cycling + bass/kick call-response.
-- **Indie dance / nu-disco (110–120)**: kicks 1+3 (or lazy 4-floor);
-  layered claps+snare on 2+4, each offset a little; 8th hats with drawn
-  velocity arcs; ghost snare before bar ends; low shaker glue; pitched
-  bongo/cowbell one-shots; swing 50–60%.
+## Space as rhythm
 
-## 6. Steal the groove from the reference (our unfair advantage)
+Rhythmic delays at musical subdivisions turn delay into a groove element —
+verified dub recipe: rimshot send, 7/32 delay, ~100% regeneration, full
+stereo width, filling the space *between* hits. Clap/snare drowned in a
+big-but-filtered reverb; one motion layer auto-panned; psy hats ~20% off
+center.
 
-The dossier's window analysis already measures the real track's onsets:
-`grid16` position, `offset_ms`, normalized `vel` per band. That is a groove
-template. Procedure: read the drop window's hat/perc band onsets → build
-the velocity ladder and the per-position ms offsets from what's measured →
-program *the reference's* groove, not a textbook's. (Pyrodoxine's drop
-shows systematic +40 ms pushes on some offbeats and a 0.5–1.0 vel ladder —
-none of which our first robotic pass used.)
+## Genre placement cheat-sheet (unchanged from v1)
+
+- **Melodic techno (120–124)**: 4-floor tuned short kick; offbeat hat +
+  doubling hat; 16th shaker motion; clap only at phrase ends (reverbed);
+  sparse tuned conga/tom every 2 bars; rim upbeats nudged early; ~10%
+  Maschine swing.
+- **Psytrance (138–145, ours 130)**: straight grid; closed hats every 16th
+  cycling 53/38/78/38%; open hats between kicks; bass owns the offbeat
+  8ths; groove = velocity cycling + kick-bass call-response + pump shape.
+- **Indie dance / nu-disco (110–120)**: kicks 1+3 or lazy 4-floor; layered
+  claps/snare on 2+4 each offset differently; 8th hats with drawn velocity
+  arcs; ghost snare before bar ends; swing 50–60%.
+
+## Steal the groove from the reference (our unfair advantage)
+
+The dossier windows measure the real track's onsets per grid16 with
+`offset_ms` and normalized `vel` per band — a groove template of the actual
+reference. Program *those* ladders and leads (at moderated depth per Senn).
+Pyrodoxine drop, measured: hat ghost/accent 0.15/0.94; rolling bass leads
+the kick band; pickup flams ~35 ms before downbeats; no clap layer.
+
+## Measurement agenda (verified gaps → our tooling can answer)
+
+The research could not verify: psy rolling-bass articulation (note lengths,
+ghost notes, envelope), arrangement-level variation cadence (what actually
+changes every 4/8/16 bars in released tracks), and phrase-level velocity
+architecture. All three are *measurable from reference tracks with our own
+analysis stack* — extract, don't speculate.

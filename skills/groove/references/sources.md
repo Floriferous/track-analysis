@@ -60,6 +60,38 @@ writing the one-line "why it earns its place". Distillations live in
   the sample pitched ±15–30 cents, alternated** (fake round-robin — the
   acoustic "different part of the cymbal" effect).
 
+## Added by the deep-research pass (2026-07-21; 3-vote verified unless noted)
+
+- [Kilchenmann & Senn 2016 — microtiming and groove](https://pmc.ncbi.nlm.nih.gov/articles/PMC5050221/)
+  (Frontiers in Psychology) — groove peaks at ~60% *reduction* of natural
+  microtiming; quantized rates as high as natural; exaggeration reliably
+  hurts. The quantitative anchor for "moderate or none, never random".
+- [A Grid in Flux: Sound and Timing in EDM](https://www.researchgate.net/publication/363269048_A_Grid_in_Flux_Sound_and_Timing_in_Electronic_Dance_Music)
+  (Music Theory Spectrum 2022) — the "indirect microtiming" paper: sonic
+  features shift perceived timing of on-grid events.
+- [Brøvig-Hanssen et al. — Dynamic Range Processing and Perceived Timing in EDM](https://ouci.dntb.gov.ua/en/works/7WRb2EP9/)
+  (MTO 26.2, 2020) — sidechain attack/release measurably changes perceived
+  timing; the pump shape is a groove parameter.
+- [Hannes Bieger on drum processing](https://blog.native-instruments.com/hannes-bieger/)
+  (NI blog) — kick tuning as the #1 mixdown step; one-voice kick sampler.
+- [Grooves From Mars](https://samplesfrommars.com/products/grooves-from-mars)
+  — 478 groove templates measured off 27 hardware machines (TRs, MPCs,
+  SP1200) against a reference clock; importable machine feel.
+- [Warehouse Rolling Techno Bass](https://www.attackmagazine.com/technique/tutorials/warehouse-rolling-techno-bass/)
+  (Attack) — first-16th-empty rolling bass; sub LP ~80 Hz; kick bell-cut at
+  the bass root.
+- [Dub-Style Drum Processing](https://www.attackmagazine.com/technique/tutorials/dub-style-drum-processing-for-character-and-groove/)
+  (Attack) — delay as a rhythm element: 7/32 rimshot delay, ~100% regen,
+  wide.
+- Psytrance practitioner tier (plausible, not independently verified):
+  [Sokolovskiy on kick+bass](https://dsokolovskiy.com/blog/all/how-to-fit-kick-and-bass-together/)
+  (kick 2–3 dB over bass, narrow cuts at bass harmonics, kick <130 ms at
+  145 BPM) · [Cinetrance on psy sidechain](https://cinetrance-records.com/blogs/cinetrance-blog/psytrance-bass-process)
+  (gentle 2:1, 3–6 dB GR) · [IDM Mag prog-psy bass](https://idmmag.com/tech/tutorials/progressive-psytrance-bass/)
+  (filter-above-fundamental bass tails) · [Zenon Records course syllabus](https://www.zenon-education.com/zenon-records-music-production-suite)
+  (kick-bass phase alignment; kick length from BPM).
+- Refuted and excluded: "Linn dismisses groove templates" (1-2 vote).
+
 ## Our own edge (no link needed)
 
 The track-analysis dossiers measure real tracks' onsets per grid16 with
