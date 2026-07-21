@@ -209,7 +209,11 @@ if __name__ == "__main__":
     ap.add_argument("--dossier", help="light-pass dossier.json path (drum groove)")
     ap.add_argument("--window", help="window label in dossier, e.g. 3m00s")
     ap.add_argument("--out", default=".", help="output directory")
-    ap.add_argument("--check", action="store_true", help="validate the drum lanes; write nothing if any check FAILs")
+    # Validation is ON by default: the failure it prevents (a "four-on-the-floor"
+    # lane exported with no note on beat 1) shipped precisely because checking
+    # was something you had to remember to ask for.
+    ap.add_argument("--no-check", action="store_true",
+                    help="skip drum-lane validation entirely (you are on your own)")
     ap.add_argument("--check-mid", help="validate an existing .mid and exit (no export); the checks are"
                                         " calibrated for drum lanes, read them accordingly on a pitched clip")
     ap.add_argument("--allow-suspect", action="store_true", help="report FAILs but export anyway")
@@ -226,9 +230,7 @@ if __name__ == "__main__":
         ap.error("--dossier and --window go together")
     dossier = json.loads(Path(a.dossier).read_text()) if a.dossier else None
     zero = ()
-    if a.check:
-        if not dossier:
-            ap.error("--check validates the drum lanes: pass --dossier and --window")
+    if dossier and not a.no_check:
         lanes, kept, bars = drum_lanes(dossier, a.window)
         rows, zero = check_lanes(lanes, dossier["bpm"], bars, w=dossier["windows"][a.window], kept=kept, deep=deep)
         n_fail, _ = report(rows, f"{dossier['slug']} @{a.window} ({dossier['bpm']:.1f} BPM, {bars} bars)")
