@@ -171,22 +171,147 @@ Banks beyond 8 (`/track/bank/+`), value resolutions above 128,
 `/browser/preset` commit flow end-to-end, automation writing
 (`/autowrite`, `/automationWriteMode`).
 
-- **Track-level continuous value writes observed failing** (2026-07-20, same
-  night as the vkb CC death): `/track/{n}/volume` and
-  `/track/{n}/send/{m}/volume` writes were sent (correct per TrackModule
-  source, `activated` toggles on the same tree DID land) but values read
-  back unchanged and no audible/measured effect — while device param
-  writes, mutes, launches, and scene names all worked. Workaround used:
-  gain moves via a device in the chain (e.g. Compressor+ Make-up).
-  Re-verify volume/send writes at next session start; if still dead this is
-  a DrivenByMoss/Bitwig defect worth reporting upstream.
-- **A cursor nested inside a Drum Machine pad cannot climb out over OSC**:
-  `/device/{+,-}` walks siblings inside the pad chain only; re-selecting
-  the track does not reset depth. Getting the cursor onto the container or
-  another pad's device needs a GUI click. Inside the pad, the Sampler's
-  pages enumerate and write fine (Overview/Perform/Amp EG — decay/sustain
-  writes verified with display readback).
+- **A COLD continuous write is silently swallowed — prime it** (diagnosed
+  2026-07-21; supersedes three separate "this address is broken" reports
+  for `/track/{n}/volume`, `/eq/freq/{band}`, and `/device/layer/{n}/pan`,
+  which were all this one behaviour).
 
+  A numeric write to a continuous parameter lands only if that address has
+  been written recently. **Prime it: send the current value, wait ~0.25 s,
+  then send the target — from one process.** Once warm, lone writes land
+  reliably (5/5 sweep on a warmed track volume). The prime value need not
+  match the current one (40→40 worked as well as 64→40), so this is not
+  takeover. A GUI touch warms an address too — which is why "nudge the
+  fader once" looked like the unlock; that's one way to prime, not the
+  mechanism.
+
+  `bw.py`'s `cmd_param` has always primed ("some states reject a cold
+  absolute write"), which is exactly why `param` never showed the bug and
+  `raw` did. Root cause is not identified in the source — `TrackModule` →
+  `ChannelImpl.setVolume` → `RangedValueImpl.setValue` →
+  `rangedValue.set(value, upperBound)` all read correctly.
+
+  **Now automated** (2026-07-21): `bw.py` has a single `send()` write path
+  with an anchored regex allowlist `is_continuous()` of every address that
+  ends in a value write, derived by reading the OSC modules. It is anchored
+  (`$`) because the `/indicate`, `/reset` and `/touched` children of those
+  same parents are triggers — `/track/1/volume` primes, `/track/1/volume/reset`
+  must not. Classification is unit-tested (29 cases). The denylist that must
+  NEVER be primed, by failure mode: fire-twice (`clip/launch`, `scene/launch`,
+  `create`, `record`, `duplicate`, `remove`, `add`, `undo`), relative steppers
+  (`/device/{+,-}`, every `bank/page/{+,-}`, `/browser/*/{+,-}`), argument-
+  ignoring toggles (`/device/bypass`, `/overdub`, `/panel/*`), asymmetric
+  transport (`/stop` rewinds on the second send), and MIDI events
+  (`/vkb_midi/*` — a primed note-on is two notes).
+
+  Related, from the same source read: **DrivenByMoss accepts exactly ONE
+  argument per message.** `OSCParser` passes a multi-arg `Object[]` straight
+  into `toInteger`, which throws — so multi-arg sends fail silently
+  everywhere except `/vkb_midi/{ch}/note`. `bw.py raw` now refuses them.
+
+  Discrete writes (`mute`, `solo`, `launch`, `name`, `/eq/type`,
+  `volume/reset`) are never affected — they land cold, every time.
+
+  **Read the value back after every continuous write.** A dropped write is
+  silent and indistinguishable from success; this is the readback rule with
+  teeth.
+
+  Raw scales worth not re-deriving: track volume raw 69 = −10.0 dB, ~0.38
+  dB/step · Compressor+ Make-up (a fine substitute fader, post-compression
+  so it won't disturb a calibrated duck) raw 64 = 0.0 dB, 39 = −9.3,
+  ~0.36 dB/step · EQ+ freq is log, raw 25 = 80 Hz and +13 raw = one octave
+  (raw ≈ 25 + 13·log2(f/80)), gain raw 64 = 0.0 dB / 80 = +7.8, Q raw 64 =
+  1.00 / 100 = 8.33.
+
+  For EQ+ specifically, prefer the **param path** over the `/eq` tree
+  anyway: `/eq/add` leaves EQ+ as the cursor device, so pin it and use
+  pages **Gains / Freqs / Qs**, one band per index — you get `[OK]` plus a
+  display-value readback for free.
+- **`page <Name>` can fail silently — always verify the page landed**
+  (2026-07-21): `bw.py page Qs` on EQ+ printed `page: Freqs` and left the
+  cursor on Freqs; the next `param 3` write then hit *3 Freq*, sending a
+  102 Hz bell band to 2.67 kHz. `page Gains` and `page Freqs` on the same
+  device worked. Cause not established (last-page? two-char name?), but the
+  workaround is solid: **`/device/page/{n}` by index landed on Qs first
+  try**, and `/device/page/selected/name` reads back the current page for
+  confirmation. Rule: after any `page`, read `params` (or
+  `page/selected/name`) and check the page header matches *before* writing —
+  a page switch also needs ~1.5-2 s to settle, and a write issued into that
+  window lands on the old page.
+- **Browser Device Type filter does not reach the result list** (2026-07-21,
+  concrete repro for the "hand deep filter navigation to the user" rule):
+  `/browser/device after`, then two `/browser/filter/6/+` — the filter reads
+  back `item/3/isSelected 1 = Instrument`, but `/browser/result/*` still
+  lists Audio FX (Amp, Blur, Chorus…) unchanged. Survived a 2.5 s settle, a
+  `/refresh` (every `bw.py state` sends one), and a `/browser/result/+`
+  nudge. The *preset* browser's Category filter (`filter/3`) DOES drive its
+  results — that flow worked twice this session (Bass, Pad) — so the defect
+  is specific to the device browser's Device Type column. Don't try to
+  enumerate installed instruments over OSC; ask the user to read the list.
+  Note the preset-browser filter list is a **scrolling window**: after
+  stepping, item indices shift (11 `+` steps from "Any Category" landed on
+  Vocal with "Pad" now at item 1), so re-read the list and step back rather
+  than counting from the original indices.
+
+### Drum Machine (all 2026-07-21)
+
+- **Reaching the container is free; reaching a specific pad needs a click.**
+  With the cursor on a track-level device, `device -` walks *back onto the
+  Drum Machine* — that is the way out of the nested-pad trap, no GUI
+  needed. What still needs the user is descending into one **particular
+  pad's** device, and they must click the **device box, not the pad**
+  (clicking a pad only changes which chain is displayed). Once inside a
+  pad, `/device/{+,-}` walks that pad's siblings only and re-selecting the
+  track will not reset the depth — a stale pad cursor survives track
+  selects and browser sessions, so **read `/device/name` back after every
+  requested click, then pin.**
+- **`/device/layer/{n}/{exists,name,pan}` enumerates the kit** from the
+  container — pad names without a single GUI question.
+- **Pad pan is the hat-width lever.** Measured high-band side share on two
+  v9 hat pads: centred **7.7%** → 48/80 **11.8%** → 34/96 **20.9%** →
+  26/104 **27.3%** → **30/100 = 23.3%** against a 24.2% reference.
+  **Chorus+ is not a substitute** — at Bal/Width 100%, Tone 85%, Depth
+  25-65%, Mix 25-70% it never moved high-band side share off 7.7% while
+  costing real top end (mix high 1.0% → 0.3% at 70% wet). It widens
+  low-mid/mid only.
+- **Probe the note map — never assume GM.** This kit had **only pads 37 and
+  42 loaded, and 42 was the OPEN hat**. A GM-shaped clip (42 closed, 46
+  open) therefore put the open hat quietly on the beats and left **every
+  offbeat silent**, which reads as "thin, needs +6 dB" rather than
+  "broken". Method: one clip per candidate note, insert, **relaunch the
+  scene** (`clip-insert-file` leaves the slot stopped — an un-relaunched
+  probe fakes a negative on every note), capture 1 bar, compare rms. Silent
+  reads exactly **−240 dBFS**, so the signal is unambiguous; ~10 captures
+  covers 36-47.
+- **Clearing solo does not reliably clear the mutes it implied** (2026-07-21).
+  After soloed captures, two unrelated tracks were left `mute 1`; the next
+  full-mix measurement then read mid 0.3 % / high 0.0 % — the parts simply
+  weren't there, with no error anywhere. In an unattended loop this poisons
+  every subsequent number. `capture.py` now snapshots mutes before a soloed
+  capture and restores any that changed; if you solo by hand, check
+  `/track/{n}/mute` afterwards.
+- **A pump measurement is only valid if the sidechain is the ONLY thing
+  modulating that band** (2026-07-21). Measuring duck on a chord bus whose
+  patch has `Sustain 0` and re-articulates once per bar read **93 %** — the
+  patch's own decay envelope, folded onto the beat, is indistinguishable
+  from a duck. Narrowing the band did not help (same 93 % at 350-2000 as at
+  300-6000) because the confound is the source, not the neighbours. Before
+  trusting a duck figure, confirm the ducked element is *sustained* across
+  the beat; otherwise calibrate the compressor against the threshold→depth
+  table (bitwig-devices/compressor-plus.md) and judge by ear. An earlier
+  68-71 % reading on the same bus carried the same inflation, so a
+  "corrected" target derived from it was withdrawn.
+- **Isolate one variable per probe, or you will misread the result.** Twice
+  in one session: an **Output A/B identifies the device, not the note** —
+  zeroing `v9 Hat Open`'s Output under a 42/46/37 clip gave a clean 7.7 dB
+  rms drop that read as "note 46 works", when the drop came from note *42*;
+  only a single-note clip isolates a mapping. And **a solo capture compared
+  against a reference *stem*** (hats alone vs a drums stem carrying a mono
+  kick) made Chorus+ look like it was widening the mix. Pick a band the
+  isolated source actually owns — the kick measures 0.0% above 2 kHz, so
+  only the high band was a fair test. Throughout, **compare rms, not
+  peak**: peak moved 0.1 dB where rms moved 7.7, because other elements'
+  transients dominate peak.
 - **Scene launches stop the print-track recording — even via EMPTY slots**
   (2026-07-20, two dead bounces): a scene fires every track's slot button in
   its row, and an empty slot button is a *stop* button, so any

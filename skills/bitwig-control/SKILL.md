@@ -7,12 +7,24 @@ description: Drive Bitwig Studio over OSC via DrivenByMoss. Use when the user wa
 
 Everything goes through `scripts/bw.py` — one-shot CLI commands over OSC
 (`bw.py -h` lists them; `bw.py raw /address args` reaches any address, see
-`references/osc-protocol.md`). Two facts shape every move:
+`references/osc-protocol.md`). Three facts shape every move:
 
 - Bitwig sends no error replies, so **the readback is the write**: a mutation
   exists once the feedback stream shows it, and not before. `param` and
   `clip-insert-file` read back automatically; after `raw`, re-read `state`
-  yourself.
+  yourself. Two silent-failure modes make this load-bearing rather than
+  pedantic: a **cold** continuous write is swallowed whole, and a `page`
+  switch can miss so a `param` lands on the wrong knob.
+- **Cold writes are primed for you — but only through `bw.py`.** A numeric
+  write to a continuous parameter (`/track/{n}/volume`,
+  `/device/layer/{n}/pan`, `/eq/freq/{n}`, …) is silently swallowed unless
+  that address was written recently; `bw.py` now detects those addresses and
+  double-sends automatically (`send()`/`is_continuous()`), printing
+  `(primed)`. Discrete writes land cold and are never primed — priming
+  `/clip/launch` would fire it twice, `/device/bypass` would toggle back,
+  `/stop` would also rewind. If you send OSC by any other route, you own the
+  priming. Mechanism, the allowlist, and raw↔display scales:
+  `references/verified-behaviors.md`.
 - The human at the GUI **shares the cockpit**: their clicks move the selection
   and the cursor device between your write and your readback, and Bitwig
   renames tracks after their devices. Trust indices + fresh reads, announce
@@ -48,8 +60,12 @@ the hearing check passes. `insertFile` takes an absolute path, preserves the
 file's micro-offsets and velocities exactly, and REPLACES slot content, so the
 command refuses a non-empty slot (`--force` only for a replacement the user
 asked for). Clips inherit the MIDI file's track name — name your pretty_midi
-instruments. Drum exports land on GM-ish notes (kick 36, hats 42/46): the
-target track needs a drum instrument, so check what it holds or ask.
+instruments. Drum exports land on GM-ish notes (kick 36, hats 42/46), but
+**the user's kit is not GM until you have probed it** — one clip per
+candidate note, relaunch, capture, compare rms (silent reads −240 dBFS).
+A kit this session had only pads 37 and 42 loaded with 42 as the *open*
+hat, so a GM-shaped clip left every offbeat silent and read as "thin"
+rather than "broken". Probing costs ~10 captures; assuming costs an hour.
 `clip-create` is for a different job — an empty clip to record or draw into.
 
 ### Scenes and arrangement
@@ -81,9 +97,14 @@ parameter maps, anchor values, and verified presets that beat rediscovery.
    `bw.py device +` — then `raw /device/pinned 1` to hold it against cockpit
    churn.
 2. `bw.py params` — the current page's 8 knobs with names and display values;
-   `bw.py page <Name>` switches pages by *name*, verified (numeric and `+`/`-`
-   forms exist but address the window and silently stick at the ends). Set
-   only knobs you've just listed: index 3 is a different knob on every page.
+   `bw.py page <Name>` switches by *name* but **can silently fail** (`page Qs`
+   on EQ+ stayed on Freqs), and a switch needs ~1.5-2 s to settle, so
+   **`page`, sleep, `params`, and check the printed page header before any
+   write** — a write issued into that window lands on the old page's knob at
+   that index. `/device/page/{n}` by index is the fallback that worked.
+   Set only knobs you've just listed: index 3 is a different knob on every
+   page. And `bw.py pages` (JSON) over-reports: it inventories the panel, not
+   the 8 live slots, so a param it lists may not exist on the page at all.
 3. `bw.py param 3 0.5` (floats 0..1 scale to the configured resolution) —
    done when it prints `[OK]` with the intended display value; `MISMATCH`
    means the cursor moved — re-run `params` and re-aim.
@@ -123,7 +144,8 @@ python capture.py --project-dir <proj> --solo <track> --bars 1 --json
 
 `capture.py` records the playing groove into a print-track slot, waits for
 the WAV in the project's `recordings/` folder, returns hear.py metrics
-(f0, harmonic ladder, band shares, level, `--pump` duck/shape) as JSON, and
+(f0, harmonic ladder, band shares, level, `--pump` duck/shape,
+`--width` per-band side share) as JSON, and
 frees the slot — ~7–9 s per iteration when the groove keeps playing between
 calls. Launch the scene once at the start (`--scene N` on the first capture);
 leave it playing. Done when the measured profile matches the target **on two
@@ -133,6 +155,13 @@ patches drift and beat on tens-of-seconds periods, and a single matching
 capture can be the drift's lucky phase (measured: identical knobs scored 1.6
 then 20.7 against one target). State the target numbers before the first
 iteration — a loop without a numeric target is just wiggling knobs.
+
+**A part that sounds small is often mono, not dull.** `--width` gives the
+side share per band against a reference stem's; a dead-centre element reads
+~0% where a wide techno hat reads ~25%. Reach for it before EQ when
+something "lacks character" — and fix width at the source (pad pan,
+`/device/layer/{n}/pan`) rather than with a stereo effect: Chorus+ measured
+*zero* movement in the high band while costing top-end level.
 
 Sidechain-specific physics (all learned calibrating a real one):
 - **Solo kills the key**: soloing the destination track mutes the key-source
