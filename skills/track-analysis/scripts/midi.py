@@ -137,7 +137,12 @@ def check_lanes(lanes, bpm, bars, w=None, kept=None, deep=None):
             rows.append(("C7", name, "FAIL", f"{len(st)} notes over {bars} bars ({per_bar:.2f}/bar)"))
             continue
         rows.append(("C7", name, "PASS", f"{len(st)} notes over {bars} bars ({per_bar:.2f}/bar)"))
-        d, dev = np.diff(st), _dev_ms(st, bpm)
+        # Rhythm checks run on ONSETS, not notes: a three-note chord is one
+        # onset, and counting it as three yields two zero-length intervals that
+        # wreck C2's subdivision test and C3's gap test. Collapse anything
+        # inside a 64th (~15ms at 130 BPM) into a single event.
+        ons = st[np.concatenate(([True], np.diff(st) > 0.0625))] if len(st) else st
+        d, dev = np.diff(ons), _dev_ms(st, bpm)
         modal = _modal_ioi(d)
         # C1 downbeat presence — KICK ONLY. A one-beat modal IOI means "a note
         # every beat", not "a note ON the beat": an offbeat open-hat pattern is
@@ -159,7 +164,7 @@ def check_lanes(lanes, bpm, bars, w=None, kept=None, deep=None):
             mult = np.maximum(1, np.round(d / 0.25))
             pct = 100.0 * np.mean(np.abs(d - mult * 0.25) <= 0.05 * mult * 0.25)
             rows.append(("C2", name, "PASS" if pct >= 90 else "FAIL", f"{pct:.1f}% of {len(d)} IOIs within 5% of a 16th multiple"))
-        if len(st) >= 8:  # C3 implausible gap
+        if len(ons) >= 8:  # C3 implausible gap
             gap = float(d.max())
             bad = gap > 2 * modal or gap > 4
             rows.append(("C3", name, "FAIL" if bad else "PASS",
