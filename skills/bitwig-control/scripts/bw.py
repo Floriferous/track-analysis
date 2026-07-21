@@ -18,6 +18,7 @@ Usage examples:
 """
 import argparse
 import os
+import re
 import threading
 import time
 
@@ -52,6 +53,52 @@ def typed(arg):
         except ValueError:
             pass
     return arg
+
+
+# A COLD continuous write is silently swallowed: a numeric write to a
+# RangedValue parameter only lands if that address was written recently.
+# Priming (send a value, pause, send the target) makes it land. Discrete
+# writes land cold and MUST NOT be primed — a primed /clip/launch fires
+# twice, a primed /device/bypass toggles back, a primed /stop rewinds.
+# So this is a strict ALLOWLIST of addresses that end in a value write, and
+# it is anchored ($) because the /indicate, /reset and /touched children of
+# those same parents are triggers.
+_CONTINUOUS = re.compile(r"""^(
+    /track/(\d+|selected)/(volume|pan)
+  | /master/(volume|pan)
+  | /track/\d+/send/\d+/volume
+  | /track/param/\d+/value
+  | /(device|primary|eq)/param/\d+/value
+  | /device/lastparam/value
+  | /device/(layer|drumpad)/(\d+|selected)/(volume|pan)
+  | /device/(layer|drumpad)/(\d+|selected)/send/\d+/volume
+  | /eq/(gain|freq|q)/\d+
+  | /project/param/\d+/value
+  | /click/volume | /crossfade | /preroll
+)$""", re.X)
+
+
+def is_continuous(address):
+    """True if `address` is a value write that needs priming."""
+    return bool(_CONTINUOUS.match(address))
+
+
+def send(address, value=None, prime=True):
+    """The one write path. Primes continuous addresses; sends everything
+    else exactly once.
+
+    Priming costs one extra packet and ~0.25s, and is the difference
+    between a write landing and vanishing without a trace. Note DBM only
+    accepts ONE argument per message (OSCParser passes a multi-arg Object[]
+    straight into toInteger, which throws) — so value is a scalar."""
+    c = client()
+    if value is None:
+        value = 1
+    if prime and is_continuous(address):
+        c.send_message(address, value)
+        time.sleep(0.25)
+    c.send_message(address, value)
+    return value
 
 
 def collect_feedback(seconds, send_refresh=True):
@@ -277,15 +324,21 @@ def cmd_lastparam(args):
 
 
 def cmd_raw(args):
-    client().send_message(args.address, [typed(a) for a in args.args] or 1)
-    print(f"sent {args.address} {args.args}")
+    vals = [typed(a) for a in args.args]
+    if len(vals) > 1:
+        # DBM hands a multi-arg Object[] straight to toInteger, which throws:
+        # the message is dropped with only a console line. Refuse loudly.
+        raise SystemExit(f"{args.address}: DrivenByMoss accepts one argument per "
+                         f"message; got {len(vals)}")
+    send(args.address, vals[0] if vals else None)
+    primed = " (primed)" if is_continuous(args.address) else ""
+    print(f"sent {args.address} {args.args}{primed}")
 
 
 def simple(address, value=None):
     def run(args):
         val = value(args) if callable(value) else value
-        client().send_message(address(args) if callable(address) else address,
-                              val if val is not None else 1)
+        send(address(args) if callable(address) else address, val)
     return run
 
 
