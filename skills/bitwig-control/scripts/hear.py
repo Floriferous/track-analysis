@@ -6,6 +6,10 @@ fundamental, harmonics, band energy split, level. For beat-aware deep analysis
 (grooves, pump, stems) use the track-analysis skill's pipeline instead.
 
 Usage: python hear.py <audio.wav> [--start s] [--dur s]
+
+Importable too: `analyze(...)` returns the same dict the CLI prints as --json.
+Callers in a loop should use it directly — a subprocess pays ~1.5 s of
+interpreter + numpy + scipy + soundfile import on every single iteration.
 """
 import argparse
 import json
@@ -33,47 +37,41 @@ def note_name(hz):
     return f"{NOTE_NAMES[m % 12]}{m // 12 - 1} {cents:+d}c"
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("audio")
-    ap.add_argument("--start", type=float, default=0.0, help="offset into the file (s)")
-    ap.add_argument("--dur", type=float, default=None, help="analysis length (s)")
-    ap.add_argument("--json", action="store_true", help="machine-readable output for loop scripts")
-    ap.add_argument("--pump-bpm", type=float, default=None,
-                    help="fold the level envelope onto one beat at this BPM: "
-                         "reports duck depth %% and minimum position (sidechain tuning)")
-    ap.add_argument("--width", action="store_true",
-                    help="per-band stereo side share (%%): 0 = mono, ~25 = a wide "
-                         "techno hat. Needs a stereo file.")
-    ap.add_argument("--pump-band", default=None, metavar="LO,HI",
-                    help="band-limit the pump envelope (Hz), e.g. 120,300 to watch "
-                         "bass harmonics while a kick occupies the sub")
-    args = ap.parse_args()
+class HearError(Exception):
+    """An expected, explainable refusal (too-short audio) — not a crash.
 
-    y, sr = sf.read(args.audio, always_2d=True)
-    y = y[int(args.start * sr):]
-    if args.dur:
-        y = y[:int(args.dur * sr)]
+    Separate from SystemExit so an in-process caller can catch it without
+    catching its own exit path; the CLI turns it back into exit 1."""
+
+
+def analyze(audio, start=0.0, dur=None, width=False, pump_bpm=None,
+            pump_band=None, report=False):
+    """Measure `audio` and return the metrics dict (the --json contract).
+
+    `report` prints the human-readable rendering as it goes — the printing
+    stays interleaved with the maths on purpose: bar graphs are drawn from
+    unrounded values, so a separate printer fed the rounded dict would drift
+    from what the CLI has always emitted."""
+    y, sr = sf.read(audio, always_2d=True)
+    y = y[int(start * sr):]
+    if dur:
+        y = y[:int(dur * sr)]
     if len(y) < sr // 2:
-        msg = f"only {len(y) / sr:.2f}s of audio after --start/--dur; need >=0.5s"
-        print(json.dumps({"error": msg}) if args.json else f"ERROR: {msg}")
-        raise SystemExit(1)
+        raise HearError(f"only {len(y) / sr:.2f}s of audio after --start/--dur; need >=0.5s")
     mono = y.mean(axis=1)
-    dur = len(mono) / sr
+    length = len(mono) / sr
 
     peak_db = 20 * np.log10(np.abs(y).max() + 1e-12)
     rms_db = 20 * np.log10(np.sqrt((mono ** 2).mean()) + 1e-12)
-    result = {"file": args.audio, "dur_s": round(dur, 2), "sr": sr,
+    result = {"file": audio, "dur_s": round(length, 2), "sr": sr,
               "peak_dbfs": round(float(peak_db), 1), "rms_dbfs": round(float(rms_db), 1)}
-    if not args.json:
-        print(f"{args.audio}: {dur:.2f}s @ {sr}Hz | peak {peak_db:+.1f} dBFS, rms {rms_db:+.1f} dBFS")
+    if report:
+        print(f"{audio}: {length:.2f}s @ {sr}Hz | peak {peak_db:+.1f} dBFS, rms {rms_db:+.1f} dBFS")
     if peak_db < -60:
-        if args.json:
-            result["silence"] = True
-            print(json.dumps(result))
-        else:
+        result["silence"] = True
+        if report:
             print("  (essentially silence — check routing/arming)")
-        return
+        return result
 
     # median magnitude spectrum: robust against transients, shows the sustained timbre
     # 16384 @ 44.1k -> 2.7 Hz bins: enough to tell E1 from F1 down in the sub
@@ -90,20 +88,20 @@ def main():
 
     total = (S ** 2).sum() + 1e-12
     result["bands"] = {}
-    if not args.json:
+    if report:
         print("band energy:")
     for name, (lo, hi) in BANDS.items():
         share = (S[(freqs >= lo) & (freqs < hi)] ** 2).sum() / total
         result["bands"][name.split(" ")[0]] = round(100 * float(share), 1)
-        if not args.json:
+        if report:
             bar = "#" * int(round(share * 40))
             print(f"  {name:<20} {100 * share:5.1f}%  {bar}")
 
     # Stereo width. Mono sources read ~0; a dead-centre element is the usual
     # reason a part sounds small next to a reference that measures ~25% side.
-    if args.width:
+    if width:
         if y.shape[1] < 2:
-            if not args.json:
+            if report:
                 print("stereo width: (mono file)")
         else:
             # mean power, NOT the median spectrum used for timbre above: width is
@@ -116,14 +114,14 @@ def main():
 
             Sm, Ss = power(y.mean(axis=1)), power((y[:, 0] - y[:, 1]) / 2)
             result["width_side_pct"] = {}
-            if not args.json:
+            if report:
                 print("stereo width (side share):")
             for name, (lo, hi) in BANDS.items():
                 sel = (freqs >= lo) & (freqs < hi)
                 me, se = Sm[sel].sum(), Ss[sel].sum()
                 pct = 100 * float(se / (me + se + 1e-20))
                 result["width_side_pct"][name.split(" ")[0]] = round(pct, 1)
-                if not args.json:
+                if report:
                     print(f"  {name:<20} {pct:5.1f}%  {'#' * int(round(pct * 0.4))}")
 
     # spectral peaks -> fundamental + harmonic series
@@ -136,7 +134,7 @@ def main():
         result["f0_hz"] = round(float(f0), 1)
         result["f0_note"] = note_name(f0)
         result["peaks"] = []
-        if not args.json:
+        if report:
             print(f"lowest strong peak (fundamental): {f0:.1f} Hz = {note_name(f0)}")
             print("strongest peaks:")
         for p in sorted(top, key=lambda p: -S[p])[:8]:
@@ -146,12 +144,12 @@ def main():
             tag = f"~H{harm:.0f}" if abs(harm - round(harm)) < 0.06 and harm >= 1 else ""
             result["peaks"].append({"hz": round(float(f), 1), "rel_db": round(float(rel), 1),
                                     "note": note_name(f), "harmonic": tag})
-            if not args.json:
+            if report:
                 print(f"  {f:7.1f} Hz  {rel:6.1f} dB  {note_name(f):<10} {tag}")
-    if args.pump_bpm:
-        if args.pump_band:
+    if pump_bpm:
+        if pump_band:
             import scipy.signal as ss
-            lo, hi = (float(x) for x in args.pump_band.split(","))
+            lo, hi = (float(x) for x in pump_band.split(","))
             sos = ss.butter(4, [lo, hi], btype="band", fs=sr, output="sos")
             mono = ss.sosfilt(sos, mono)
         # 30ms RMS envelope folded onto one beat -> pump curve
@@ -160,7 +158,7 @@ def main():
         env = np.array([np.sqrt((mono[i:i + win] ** 2).mean())
                         for i in range(0, len(mono) - win, hop_e)])
         t = (np.arange(len(env)) * hop_e + win // 2) / sr
-        beat = 60.0 / args.pump_bpm
+        beat = 60.0 / pump_bpm
         phase = (t % beat) / beat
         nbins = 48
         curve = np.zeros(nbins)
@@ -178,11 +176,37 @@ def main():
         result["pump_duck_pct"] = round(float(duck), 1)
         result["pump_min_at_pct"] = round(float(min_at), 1)
         result["pump_recovery_at_75_pct"] = round(float(rec75), 1)
-        if not args.json:
+        if report:
             print(f"pump: duck {duck:.0f}%, minimum at {min_at:.0f}% of beat, "
                   f"recovered {rec75:.0f}% by the 3/4 mark")
             bars = np.clip(curve / ref * 8, 0, 8).round().astype(int)
             print("  " + "".join(" .:-=+*#@"[v] for v in bars))
+    return result
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("audio")
+    ap.add_argument("--start", type=float, default=0.0, help="offset into the file (s)")
+    ap.add_argument("--dur", type=float, default=None, help="analysis length (s)")
+    ap.add_argument("--json", action="store_true", help="machine-readable output for loop scripts")
+    ap.add_argument("--pump-bpm", type=float, default=None,
+                    help="fold the level envelope onto one beat at this BPM: "
+                         "reports duck depth %% and minimum position (sidechain tuning)")
+    ap.add_argument("--width", action="store_true",
+                    help="per-band stereo side share (%%): 0 = mono, ~25 = a wide "
+                         "techno hat. Needs a stereo file.")
+    ap.add_argument("--pump-band", default=None, metavar="LO,HI",
+                    help="band-limit the pump envelope (Hz), e.g. 120,300 to watch "
+                         "bass harmonics while a kick occupies the sub")
+    args = ap.parse_args()
+
+    try:
+        result = analyze(args.audio, args.start, args.dur, args.width,
+                         args.pump_bpm, args.pump_band, report=not args.json)
+    except HearError as e:
+        print(json.dumps({"error": str(e)}) if args.json else f"ERROR: {e}")
+        raise SystemExit(1)
     if args.json:
         print(json.dumps(result))
 
