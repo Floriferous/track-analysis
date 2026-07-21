@@ -66,6 +66,29 @@ with the **key-source track muted** (isolates the pumped signal; the
 container-internal key tap survives track mute — soloing instead kills the
 key). Expect the three numbers above ±5.
 
+### `pump-medium` — 70% duck (Beyond Gravity, 2026-07-21)
+
+Threshold **59 → −25.7 dB**, Ratio 1:∞, Attack 0.64 ms, Release 134 ms, key
+from the kick *track* (POST). Measured **68–71% duck** on two consecutive
+captures vs a 74% target, recovery 92–96% by 3/4.
+
+Threshold→depth on this key level: −18.1 → **39%**, −23.8 → **68%**,
+−25.7 → **68–71%**. Note how flat it goes past −24 — the last 3 dB of
+threshold bought almost nothing, so chase depth with threshold only until
+it plateaus.
+
+**Measuring pump without solo**: soloing the pumped track kills the key, and
+the kick pollutes any band it shares. Fix used here: capture the **full mix**
+and band-limit to a band only the pumped signal occupies
+(`--pump-band 350,2000` for a chord pad, where kick and bass both measured
+0.0%). No mutes, no solos, no key loss.
+
+**`minimum at X% of beat` is noisy — judge on depth.** Two back-to-back
+captures of an unchanged patch gave min-at **12%** and **27%** (duck 71/68).
+The trough is broad and flat, so the argmin wanders; the earlier pyrodoxine
+entry's 12.5-vs-17 "offset" was probably this same noise, not a systematic
+bias.
+
 Depth trades against threshold: −20 dB ≈ 84% duck, −24 ≈ 88%, −27 ≈ 93%
 (ratio 1:∞, this key level — a hotter/quieter kick shifts the whole scale;
 trust the measurement, not the absolute dB).

@@ -42,3 +42,5 @@ their measured result). Format, in order:
 
 - [`devices/compressor-plus.md`](devices/compressor-plus.md) — Compressor+:
   sidechain pump (kick-keyed duck), the four-knob calibration map.
+- [`devices/organ.md`](devices/organ.md) — Organ: drawbar map with dB
+  anchors; `clean-sub` and `warm-stab` presets.

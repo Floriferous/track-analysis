@@ -77,6 +77,13 @@ Diva is panels-with-swappable-models (manual p23):
   window names can read stale (`Rotary1/Plate2` appeared in a window whose
   other names were blank). Navigate by stepping `/device/param/+` and
   verifying `/device/page/selected/name` before every write.
+- **Some panel params are simply unreachable on Diva's live pages.** On
+  Pndrosa Beef `bw.py pages` listed `AmpEnv` with 6 params but the live page
+  held only 2 (Decay, Sustain) — `AmpEnv Attack` cannot be written over OSC
+  at all, and needs the user's click plus `/device/lastparam/value`. The
+  general page/param hazard this belongs to (verify the page before writing;
+  the JSON inventories the panel, not the 8 live slots) is
+  bitwig-control's — see its SKILL.md step 2.
 - **Navigate pages by name — `bw.py page Lowpass` — never by index**
   (incident 2026-07-17: a numeric jump selected *Plate2* and two writes
   landed on the reverb's Wet; mechanism in bitwig-control's
